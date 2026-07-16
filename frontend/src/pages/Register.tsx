@@ -1,6 +1,46 @@
+import { useState } from "react";
 import { Link } from "react-router";
 
 function Register() {
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    full_name: name,
+                    email,
+                    password,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert("Registration successful!");
+                console.log(data);
+            } else {
+                const message =
+                    typeof data.detail === "string"
+                        ? data.detail
+                        : "Registration failed. Check your information.";
+
+                alert(message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Cannot connect to backend.");
+        }
+    };
+
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-12 text-white">
             <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
@@ -14,7 +54,7 @@ function Register() {
                     Start building healthier financial habits today.
                 </p>
 
-                <form className="mt-8 space-y-5">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                     <div>
                         <label
                             htmlFor="name"
@@ -27,6 +67,9 @@ function Register() {
                             id="name"
                             type="text"
                             placeholder="Your full name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
                             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                         />
                     </div>
@@ -43,6 +86,9 @@ function Register() {
                             id="email"
                             type="email"
                             placeholder="you@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                         />
                     </div>
@@ -59,6 +105,9 @@ function Register() {
                             id="password"
                             type="password"
                             placeholder="Create a password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
                             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                         />
                     </div>
