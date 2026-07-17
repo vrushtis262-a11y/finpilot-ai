@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 import auth
@@ -155,6 +156,54 @@ def login_user(
     return {
         "access_token": access_token,
         "token_type": "bearer",
+    }
+
+
+@app.get("/analytics/summary")
+def get_analytics_summary(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    summary = (
+        db.query(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            models.Transaction.transaction_type == "income",
+                            models.Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            models.Transaction.transaction_type == "expense",
+                            models.Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_expense"),
+            func.count(models.Transaction.id).label("transaction_count"),
+        )
+        .filter(models.Transaction.user_id == current_user.id)
+        .one()
+    )
+
+    total_income = float(summary.total_income)
+    total_expense = float(summary.total_expense)
+
+    return {
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "balance": total_income - total_expense,
+        "transaction_count": int(summary.transaction_count),
     }
 
 

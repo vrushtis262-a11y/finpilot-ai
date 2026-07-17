@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 
 type Transaction = {
@@ -11,16 +11,37 @@ type Transaction = {
     user_id: number;
 };
 
+type AnalyticsSummary = {
+    total_income: number;
+    total_expense: number;
+    balance: number;
+    transaction_count: number;
+};
+
+const emptySummary: AnalyticsSummary = {
+    total_income: 0,
+    total_expense: 0,
+    balance: 0,
+    transaction_count: 0,
+};
+
 function Dashboard() {
     const navigate = useNavigate();
     const token = localStorage.getItem("token");
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [summary, setSummary] =
+        useState<AnalyticsSummary>(emptySummary);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    const fetchTransactions = async () => {
+    const handleUnauthorized = useCallback(() => {
+        localStorage.removeItem("token");
+        navigate("/login");
+    }, [navigate]);
+
+    const fetchDashboardData = useCallback(async () => {
         if (!token) {
             return;
         }
@@ -28,77 +49,90 @@ function Dashboard() {
         try {
             setError("");
 
-            const response = await fetch(
-                "http://127.0.0.1:8000/transactions",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            const [transactionsResponse, summaryResponse] =
+                await Promise.all([
+                    fetch("http://127.0.0.1:8000/transactions", {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }),
+                    fetch(
+                        "http://127.0.0.1:8000/analytics/summary",
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        }
+                    ),
+                ]);
 
-            const data = await response.json();
+            if (
+                transactionsResponse.status === 401 ||
+                summaryResponse.status === 401
+            ) {
+                handleUnauthorized();
+                return;
+            }
 
-            if (!response.ok) {
-                if (response.status === 401) {
-                    localStorage.removeItem("token");
-                    navigate("/login");
-                    return;
-                }
+            const transactionsData =
+                await transactionsResponse.json();
+            const summaryData = await summaryResponse.json();
 
+            if (!transactionsResponse.ok) {
                 throw new Error(
-                    typeof data.detail === "string"
-                        ? data.detail
+                    typeof transactionsData.detail === "string"
+                        ? transactionsData.detail
                         : "Could not load transactions."
                 );
             }
 
-            setTransactions(data);
+            if (!summaryResponse.ok) {
+                throw new Error(
+                    typeof summaryData.detail === "string"
+                        ? summaryData.detail
+                        : "Could not load financial summary."
+                );
+            }
+
+            setTransactions(transactionsData);
+            setSummary(summaryData);
         } catch (err) {
             console.error(err);
 
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Could not load transactions."
+                    : "Could not load dashboard data."
             );
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [handleUnauthorized, token]);
 
     useEffect(() => {
         if (!token) {
             return;
         }
 
-        fetchTransactions();
-    }, [navigate, token]);
+        fetchDashboardData();
+    }, [fetchDashboardData, token]);
 
     if (!token) {
         return <Navigate to="/login" replace />;
     }
 
-    const totalIncome = transactions
-        .filter(
-            (transaction) => transaction.transaction_type === "income"
-        )
-        .reduce(
-            (total, transaction) => total + transaction.amount,
-            0
-        );
-
-    const totalExpenses = transactions
-        .filter(
-            (transaction) => transaction.transaction_type === "expense"
-        )
-        .reduce(
-            (total, transaction) => total + transaction.amount,
-            0
-        );
-
-    const totalBalance = totalIncome - totalExpenses;
+    const totalIncome = summary.total_income;
+    const totalExpenses = summary.total_expense;
+    const totalBalance = summary.balance;
     const totalSavings = totalBalance;
+
+    const incomeTransactionCount = transactions.filter(
+        (transaction) => transaction.transaction_type === "income"
+    ).length;
+
+    const expenseTransactionCount = transactions.filter(
+        (transaction) => transaction.transaction_type === "expense"
+    ).length;
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat("en-US", {
@@ -137,6 +171,11 @@ function Dashboard() {
                 }
             );
 
+            if (response.status === 401) {
+                handleUnauthorized();
+                return;
+            }
+
             if (!response.ok) {
                 let message = "Could not delete transaction.";
 
@@ -147,19 +186,15 @@ function Dashboard() {
                         message = data.detail;
                     }
                 } catch {
-                    console.error("Could not read delete error response.");
-                }
-
-                if (response.status === 401) {
-                    localStorage.removeItem("token");
-                    navigate("/login");
-                    return;
+                    console.error(
+                        "Could not read delete error response."
+                    );
                 }
 
                 throw new Error(message);
             }
 
-            await fetchTransactions();
+            await fetchDashboardData();
         } catch (err) {
             console.error(err);
 
@@ -187,29 +222,17 @@ function Dashboard() {
         {
             title: "Total income",
             value: formatCurrency(totalIncome),
-            change: `${transactions.filter(
-                (transaction) =>
-                    transaction.transaction_type === "income"
-            ).length} income transaction(s)`,
+            change: `${incomeTransactionCount} income transaction(s)`,
         },
         {
             title: "Total expenses",
             value: formatCurrency(totalExpenses),
-            change: `${transactions.filter(
-                (transaction) =>
-                    transaction.transaction_type === "expense"
-            ).length} expense transaction(s)`,
+            change: `${expenseTransactionCount} expense transaction(s)`,
         },
         {
-            title: "Total savings",
-            value: formatCurrency(totalSavings),
-            change:
-                totalIncome > 0
-                    ? `${(
-                        (totalSavings / totalIncome) *
-                        100
-                    ).toFixed(1)}% savings rate`
-                    : "Add income to calculate rate",
+            title: "Transactions",
+            value: summary.transaction_count.toString(),
+            change: "Total recorded transactions",
         },
     ];
 
@@ -266,7 +289,7 @@ function Dashboard() {
                             </p>
 
                             <p className="mt-3 text-3xl font-bold">
-                                {card.value}
+                                {isLoading ? "..." : card.value}
                             </p>
 
                             <p className="mt-3 text-sm text-cyan-400">
@@ -303,7 +326,7 @@ function Dashboard() {
                         <div className="mt-6">
                             {isLoading && (
                                 <p className="text-slate-400">
-                                    Loading transactions...
+                                    Loading dashboard...
                                 </p>
                             )}
 
@@ -371,8 +394,8 @@ function Dashboard() {
 
                                                             <p
                                                                 className={`font-semibold ${isIncome
-                                                                    ? "text-emerald-400"
-                                                                    : "text-rose-400"
+                                                                        ? "text-emerald-400"
+                                                                        : "text-rose-400"
                                                                     }`}
                                                             >
                                                                 {isIncome
@@ -435,12 +458,19 @@ function Dashboard() {
                         </h2>
 
                         <p className="mt-3 leading-7 text-slate-300">
-                            {transactions.length === 0
+                            {summary.transaction_count === 0
                                 ? "Add transactions to receive personalized financial insights."
                                 : totalBalance >= 0
                                     ? `Your current balance is ${formatCurrency(
                                         totalBalance
-                                    )}. Keep tracking your spending to improve your savings.`
+                                    )}. Your estimated savings rate is ${totalIncome > 0
+                                        ? (
+                                            (totalSavings /
+                                                totalIncome) *
+                                            100
+                                        ).toFixed(1)
+                                        : "0.0"
+                                    }%.`
                                     : `You are spending ${formatCurrency(
                                         Math.abs(totalBalance)
                                     )} more than your recorded income.`}
