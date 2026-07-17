@@ -1,57 +1,117 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate, useParams } from "react-router";
 
 import { TRANSACTION_CATEGORIES } from "../constants/categories";
 
 type TransactionType = "income" | "expense";
 
-function AddTransaction() {
+type Transaction = {
+    id: number;
+    title: string;
+    amount: number;
+    category: string;
+    transaction_type: TransactionType;
+    transaction_date: string;
+};
+
+function EditTransaction() {
+    const { id } = useParams();
     const navigate = useNavigate();
     const token = localStorage.getItem("token");
 
-    const today = new Date().toISOString().split("T")[0];
-
-    const [type, setType] = useState<TransactionType>("expense");
     const [title, setTitle] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
-    const [transactionDate, setTransactionDate] = useState(today);
+    const [transactionType, setTransactionType] =
+        useState<TransactionType>("expense");
+    const [transactionDate, setTransactionDate] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const availableCategories = TRANSACTION_CATEGORIES[type];
+    const availableCategories = TRANSACTION_CATEGORIES[transactionType];
 
-    if (!token) {
-        return <Navigate to="/login" replace />;
-    }
+    useEffect(() => {
+        const fetchTransaction = async () => {
+            if (!token) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    "http://127.0.0.1:8000/transactions",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                const data: Transaction[] = await response.json();
+
+                if (!response.ok) {
+                    throw new Error("Failed to load transaction.");
+                }
+
+                const transaction = data.find(
+                    (item) => item.id === Number(id)
+                );
+
+                if (!transaction) {
+                    throw new Error("Transaction not found.");
+                }
+
+                setTitle(transaction.title);
+                setAmount(transaction.amount.toString());
+                setCategory(transaction.category);
+                setTransactionType(transaction.transaction_type);
+                setTransactionDate(transaction.transaction_date);
+            } catch (err) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to load transaction."
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTransaction();
+    }, [id, token]);
 
     const handleTypeChange = (newType: TransactionType) => {
-        setType(newType);
+        setTransactionType(newType);
         setCategory("");
     };
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
+    const handleSubmit = async (
+        event: React.FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
 
         const cleanTitle = title.trim();
         const numericAmount = Number(amount);
 
+        setError("");
+
         if (!cleanTitle) {
-            alert("Please enter a title.");
+            setError("Please enter a title.");
             return;
         }
 
         if (!category) {
-            alert("Please choose a category.");
+            setError("Please choose a category.");
             return;
         }
 
         if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-            alert("Amount must be greater than 0.");
+            setError("Amount must be greater than 0.");
             return;
         }
 
         if (!transactionDate) {
-            alert("Please choose a transaction date.");
+            setError("Please choose a transaction date.");
             return;
         }
 
@@ -59,9 +119,9 @@ function AddTransaction() {
 
         try {
             const response = await fetch(
-                "http://127.0.0.1:8000/transactions",
+                `http://127.0.0.1:8000/transactions/${id}`,
                 {
-                    method: "POST",
+                    method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
@@ -70,7 +130,7 @@ function AddTransaction() {
                         title: cleanTitle,
                         amount: numericAmount,
                         category,
-                        transaction_type: type,
+                        transaction_type: transactionType,
                         transaction_date: transactionDate,
                     }),
                 }
@@ -79,30 +139,36 @@ function AddTransaction() {
             const data = await response.json();
 
             if (!response.ok) {
-                const message =
+                throw new Error(
                     typeof data.detail === "string"
                         ? data.detail
-                        : "Could not save transaction.";
-
-                alert(message);
-
-                if (response.status === 401) {
-                    localStorage.removeItem("token");
-                    navigate("/login");
-                }
-
-                return;
+                        : "Update failed."
+                );
             }
 
-            alert("Transaction saved successfully!");
             navigate("/dashboard");
-        } catch (error) {
-            console.error(error);
-            alert("Cannot connect to backend.");
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Update failed."
+            );
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (loading) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+                Loading...
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -116,11 +182,19 @@ function AddTransaction() {
                 </button>
 
                 <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-                    <h1 className="text-3xl font-bold">Add transaction</h1>
+                    <h1 className="text-3xl font-bold">
+                        Edit transaction
+                    </h1>
 
                     <p className="mt-2 text-slate-400">
-                        Record income or an expense.
+                        Update this transaction's details.
                     </p>
+
+                    {error && (
+                        <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+                            {error}
+                        </p>
+                    )}
 
                     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                         <div>
@@ -133,7 +207,7 @@ function AddTransaction() {
 
                             <select
                                 id="type"
-                                value={type}
+                                value={transactionType}
                                 onChange={(e) =>
                                     handleTypeChange(
                                         e.target.value as TransactionType
@@ -158,11 +232,10 @@ function AddTransaction() {
                                 id="title"
                                 type="text"
                                 maxLength={100}
-                                placeholder="Example: Salary or Groceries"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
                             />
                         </div>
 
@@ -179,11 +252,10 @@ function AddTransaction() {
                                 type="number"
                                 min="0.01"
                                 step="0.01"
-                                placeholder="0.00"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
                             />
                         </div>
 
@@ -238,8 +310,8 @@ function AddTransaction() {
                             className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSubmitting
-                                ? "Saving..."
-                                : "Save transaction"}
+                                ? "Updating..."
+                                : "Update transaction"}
                         </button>
                     </form>
                 </div>
@@ -248,4 +320,4 @@ function AddTransaction() {
     );
 }
 
-export default AddTransaction;
+export default EditTransaction;

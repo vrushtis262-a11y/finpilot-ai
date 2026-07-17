@@ -7,6 +7,7 @@ type Transaction = {
     amount: number;
     category: string;
     transaction_type: "income" | "expense";
+    transaction_date: string;
     user_id: number;
 };
 
@@ -17,48 +18,59 @@ function Dashboard() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    const fetchTransactions = async () => {
+        if (!token) {
+            return;
+        }
+
+        try {
+            setError("");
+
+            const response = await fetch(
+                "http://127.0.0.1:8000/transactions",
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem("token");
+                    navigate("/login");
+                    return;
+                }
+
+                throw new Error(
+                    typeof data.detail === "string"
+                        ? data.detail
+                        : "Could not load transactions."
+                );
+            }
+
+            setTransactions(data);
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Could not load transactions."
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!token) {
             return;
         }
-
-        const fetchTransactions = async () => {
-            try {
-                const response = await fetch("http://127.0.0.1:8000/transactions", {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        localStorage.removeItem("token");
-                        navigate("/login");
-                        return;
-                    }
-
-                    throw new Error(
-                        typeof data.detail === "string"
-                            ? data.detail
-                            : "Could not load transactions."
-                    );
-                }
-
-                setTransactions(data);
-            } catch (err) {
-                console.error(err);
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Could not load transactions."
-                );
-            } finally {
-                setIsLoading(false);
-            }
-        };
 
         fetchTransactions();
     }, [navigate, token]);
@@ -68,12 +80,22 @@ function Dashboard() {
     }
 
     const totalIncome = transactions
-        .filter((transaction) => transaction.transaction_type === "income")
-        .reduce((total, transaction) => total + transaction.amount, 0);
+        .filter(
+            (transaction) => transaction.transaction_type === "income"
+        )
+        .reduce(
+            (total, transaction) => total + transaction.amount,
+            0
+        );
 
     const totalExpenses = transactions
-        .filter((transaction) => transaction.transaction_type === "expense")
-        .reduce((total, transaction) => total + transaction.amount, 0);
+        .filter(
+            (transaction) => transaction.transaction_type === "expense"
+        )
+        .reduce(
+            (total, transaction) => total + transaction.amount,
+            0
+        );
 
     const totalBalance = totalIncome - totalExpenses;
     const totalSavings = totalBalance;
@@ -83,6 +105,73 @@ function Dashboard() {
             style: "currency",
             currency: "USD",
         }).format(amount);
+
+    const formatDate = (date: string) =>
+        new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            timeZone: "UTC",
+        }).format(new Date(`${date}T00:00:00Z`));
+
+    const handleDelete = async (transaction: Transaction) => {
+        const shouldDelete = window.confirm(
+            `Delete "${transaction.title}"? This action cannot be undone.`
+        );
+
+        if (!shouldDelete) {
+            return;
+        }
+
+        try {
+            setDeletingId(transaction.id);
+            setError("");
+
+            const response = await fetch(
+                `http://127.0.0.1:8000/transactions/${transaction.id}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                let message = "Could not delete transaction.";
+
+                try {
+                    const data = await response.json();
+
+                    if (typeof data.detail === "string") {
+                        message = data.detail;
+                    }
+                } catch {
+                    console.error("Could not read delete error response.");
+                }
+
+                if (response.status === 401) {
+                    localStorage.removeItem("token");
+                    navigate("/login");
+                    return;
+                }
+
+                throw new Error(message);
+            }
+
+            await fetchTransactions();
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Could not delete transaction."
+            );
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     const handleSignOut = () => {
         localStorage.removeItem("token");
@@ -99,14 +188,16 @@ function Dashboard() {
             title: "Total income",
             value: formatCurrency(totalIncome),
             change: `${transactions.filter(
-                (transaction) => transaction.transaction_type === "income"
+                (transaction) =>
+                    transaction.transaction_type === "income"
             ).length} income transaction(s)`,
         },
         {
             title: "Total expenses",
             value: formatCurrency(totalExpenses),
             change: `${transactions.filter(
-                (transaction) => transaction.transaction_type === "expense"
+                (transaction) =>
+                    transaction.transaction_type === "expense"
             ).length} expense transaction(s)`,
         },
         {
@@ -114,7 +205,10 @@ function Dashboard() {
             value: formatCurrency(totalSavings),
             change:
                 totalIncome > 0
-                    ? `${((totalSavings / totalIncome) * 100).toFixed(1)}% savings rate`
+                    ? `${(
+                        (totalSavings / totalIncome) *
+                        100
+                    ).toFixed(1)}% savings rate`
                     : "Add income to calculate rate",
         },
     ];
@@ -128,7 +222,8 @@ function Dashboard() {
                         onClick={() => navigate("/")}
                         className="text-2xl font-bold"
                     >
-                        FinPilot <span className="text-cyan-400">AI</span>
+                        FinPilot{" "}
+                        <span className="text-cyan-400">AI</span>
                     </button>
 
                     <div className="flex items-center gap-4">
@@ -148,7 +243,9 @@ function Dashboard() {
             </header>
 
             <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
-                <p className="font-semibold text-cyan-400">Financial overview</p>
+                <p className="font-semibold text-cyan-400">
+                    Financial overview
+                </p>
 
                 <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
                     Your dashboard
@@ -164,9 +261,17 @@ function Dashboard() {
                             key={card.title}
                             className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
                         >
-                            <p className="text-sm text-slate-400">{card.title}</p>
-                            <p className="mt-3 text-3xl font-bold">{card.value}</p>
-                            <p className="mt-3 text-sm text-cyan-400">{card.change}</p>
+                            <p className="text-sm text-slate-400">
+                                {card.title}
+                            </p>
+
+                            <p className="mt-3 text-3xl font-bold">
+                                {card.value}
+                            </p>
+
+                            <p className="mt-3 text-sm text-cyan-400">
+                                {card.change}
+                            </p>
                         </article>
                     ))}
                 </div>
@@ -186,7 +291,9 @@ function Dashboard() {
 
                             <button
                                 type="button"
-                                onClick={() => navigate("/add-transaction")}
+                                onClick={() =>
+                                    navigate("/add-transaction")
+                                }
                                 className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
                             >
                                 Add transaction
@@ -195,56 +302,124 @@ function Dashboard() {
 
                         <div className="mt-6">
                             {isLoading && (
-                                <p className="text-slate-400">Loading transactions...</p>
+                                <p className="text-slate-400">
+                                    Loading transactions...
+                                </p>
                             )}
 
                             {!isLoading && error && (
-                                <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-rose-300">
+                                <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-rose-300">
                                     {error}
                                 </p>
                             )}
 
-                            {!isLoading && !error && transactions.length === 0 && (
-                                <div className="rounded-xl bg-slate-950 p-6 text-center">
-                                    <p className="font-medium">No transactions yet</p>
-                                    <p className="mt-2 text-sm text-slate-500">
-                                        Add your first income or expense to get started.
-                                    </p>
-                                </div>
-                            )}
+                            {!isLoading &&
+                                transactions.length === 0 &&
+                                !error && (
+                                    <div className="rounded-xl bg-slate-950 p-6 text-center">
+                                        <p className="font-medium">
+                                            No transactions yet
+                                        </p>
 
-                            {!isLoading && !error && transactions.length > 0 && (
-                                <div className="space-y-4">
-                                    {transactions.map((transaction) => {
-                                        const isIncome =
-                                            transaction.transaction_type === "income";
+                                        <p className="mt-2 text-sm text-slate-500">
+                                            Add your first income or
+                                            expense to get started.
+                                        </p>
+                                    </div>
+                                )}
 
-                                        return (
-                                            <div
-                                                key={transaction.id}
-                                                className="flex items-center justify-between rounded-xl bg-slate-950 p-4"
-                                            >
-                                                <div>
-                                                    <p className="font-medium">{transaction.title}</p>
-                                                    <p className="mt-1 text-sm text-slate-500">
-                                                        {transaction.category}
-                                                    </p>
-                                                </div>
+                            {!isLoading &&
+                                transactions.length > 0 && (
+                                    <div className="space-y-4">
+                                        {transactions.map(
+                                            (transaction) => {
+                                                const isIncome =
+                                                    transaction.transaction_type ===
+                                                    "income";
 
-                                                <p
-                                                    className={`font-semibold ${isIncome
-                                                        ? "text-emerald-400"
-                                                        : "text-rose-400"
-                                                        }`}
-                                                >
-                                                    {isIncome ? "+" : "-"}
-                                                    {formatCurrency(transaction.amount)}
-                                                </p>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                                const isDeleting =
+                                                    deletingId ===
+                                                    transaction.id;
+
+                                                return (
+                                                    <div
+                                                        key={
+                                                            transaction.id
+                                                        }
+                                                        className="rounded-xl bg-slate-950 p-4"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <p className="font-medium">
+                                                                    {
+                                                                        transaction.title
+                                                                    }
+                                                                </p>
+
+                                                                <p className="mt-1 text-sm text-slate-500">
+                                                                    {
+                                                                        transaction.category
+                                                                    }
+                                                                </p>
+
+                                                                <p className="mt-1 text-sm text-slate-600">
+                                                                    {formatDate(
+                                                                        transaction.transaction_date
+                                                                    )}
+                                                                </p>
+                                                            </div>
+
+                                                            <p
+                                                                className={`font-semibold ${isIncome
+                                                                    ? "text-emerald-400"
+                                                                    : "text-rose-400"
+                                                                    }`}
+                                                            >
+                                                                {isIncome
+                                                                    ? "+"
+                                                                    : "-"}
+                                                                {formatCurrency(
+                                                                    transaction.amount
+                                                                )}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="mt-4 flex justify-end gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    navigate(
+                                                                        `/edit-transaction/${transaction.id}`
+                                                                    )
+                                                                }
+                                                                className="rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                                                            >
+                                                                Edit
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        transaction
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isDeleting
+                                                                }
+                                                                className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:border-rose-400 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                {isDeleting
+                                                                    ? "Deleting..."
+                                                                    : "Delete"}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                )}
                         </div>
                     </section>
 
