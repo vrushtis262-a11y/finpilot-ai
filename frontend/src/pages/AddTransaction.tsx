@@ -3,13 +3,15 @@ import { Navigate, useNavigate } from "react-router";
 
 function AddTransaction() {
     const navigate = useNavigate();
-
     const token = localStorage.getItem("token");
+
+    const today = new Date().toISOString().split("T")[0];
 
     const [type, setType] = useState("expense");
     const [title, setTitle] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
+    const [transactionDate, setTransactionDate] = useState(today);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     if (!token) {
@@ -18,6 +20,31 @@ function AddTransaction() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const cleanTitle = title.trim();
+        const cleanCategory = category.trim();
+        const numericAmount = Number(amount);
+
+        if (!cleanTitle) {
+            alert("Please enter a title.");
+            return;
+        }
+
+        if (!cleanCategory) {
+            alert("Please enter a category.");
+            return;
+        }
+
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+            alert("Amount must be greater than 0.");
+            return;
+        }
+
+        if (!transactionDate) {
+            alert("Please choose a transaction date.");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -28,10 +55,11 @@ function AddTransaction() {
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    title,
-                    amount: Number(amount),
-                    category,
+                    title: cleanTitle,
+                    amount: numericAmount,
+                    category: cleanCategory,
                     transaction_type: type,
+                    transaction_date: transactionDate,
                 }),
             });
 
@@ -112,6 +140,7 @@ function AddTransaction() {
                             <input
                                 id="title"
                                 type="text"
+                                maxLength={100}
                                 placeholder="Example: Salary or Groceries"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
@@ -152,11 +181,30 @@ function AddTransaction() {
                             <input
                                 id="category"
                                 type="text"
+                                maxLength={50}
                                 placeholder="Example: Food, Housing, Salary"
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
                                 required
                                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="transaction-date"
+                                className="mb-2 block text-sm font-medium text-slate-300"
+                            >
+                                Transaction date
+                            </label>
+
+                            <input
+                                id="transaction-date"
+                                type="date"
+                                value={transactionDate}
+                                onChange={(e) => setTransactionDate(e.target.value)}
+                                required
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
                             />
                         </div>
 
