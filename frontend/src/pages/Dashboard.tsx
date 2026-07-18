@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
+import MonthlyIncomeExpenseChart from "../components/MonthlyIncomeExpenseChart";
 
 type Transaction = {
     id: number;
@@ -18,6 +19,13 @@ type AnalyticsSummary = {
     transaction_count: number;
 };
 
+type MonthlyAnalytics = {
+    month: string;
+    total_income: number;
+    total_expense: number;
+    balance: number;
+};
+
 const emptySummary: AnalyticsSummary = {
     total_income: 0,
     total_expense: 0,
@@ -32,6 +40,9 @@ function Dashboard() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [summary, setSummary] =
         useState<AnalyticsSummary>(emptySummary);
+    const [monthlyAnalytics, setMonthlyAnalytics] = useState<
+        MonthlyAnalytics[]
+    >([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
     const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -49,26 +60,32 @@ function Dashboard() {
         try {
             setError("");
 
-            const [transactionsResponse, summaryResponse] =
-                await Promise.all([
-                    fetch("http://127.0.0.1:8000/transactions", {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }),
-                    fetch(
-                        "http://127.0.0.1:8000/analytics/summary",
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                            },
-                        }
-                    ),
-                ]);
+            const [
+                transactionsResponse,
+                summaryResponse,
+                monthlyResponse,
+            ] = await Promise.all([
+                fetch("http://127.0.0.1:8000/transactions", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+                fetch("http://127.0.0.1:8000/analytics/summary", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+                fetch("http://127.0.0.1:8000/analytics/monthly", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+            ]);
 
             if (
                 transactionsResponse.status === 401 ||
-                summaryResponse.status === 401
+                summaryResponse.status === 401 ||
+                monthlyResponse.status === 401
             ) {
                 handleUnauthorized();
                 return;
@@ -77,6 +94,7 @@ function Dashboard() {
             const transactionsData =
                 await transactionsResponse.json();
             const summaryData = await summaryResponse.json();
+            const monthlyData = await monthlyResponse.json();
 
             if (!transactionsResponse.ok) {
                 throw new Error(
@@ -94,8 +112,17 @@ function Dashboard() {
                 );
             }
 
+            if (!monthlyResponse.ok) {
+                throw new Error(
+                    typeof monthlyData.detail === "string"
+                        ? monthlyData.detail
+                        : "Could not load monthly analytics."
+                );
+            }
+
             setTransactions(transactionsData);
             setSummary(summaryData);
+            setMonthlyAnalytics(monthlyData);
         } catch (err) {
             console.error(err);
 
@@ -299,6 +326,29 @@ function Dashboard() {
                     ))}
                 </div>
 
+                <div className="mt-8">
+                    {isLoading ? (
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+                            Loading monthly analytics...
+                        </div>
+                    ) : monthlyAnalytics.length > 0 ? (
+                        <MonthlyIncomeExpenseChart
+                            data={monthlyAnalytics}
+                        />
+                    ) : (
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                            <h2 className="text-xl font-semibold">
+                                Monthly Income vs Expenses
+                            </h2>
+
+                            <p className="mt-2 text-slate-400">
+                                Add transactions to display your monthly
+                                analytics chart.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 <div className="mt-8 grid gap-6 lg:grid-cols-3">
                     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 lg:col-span-2">
                         <div className="flex items-center justify-between gap-4">
@@ -394,8 +444,8 @@ function Dashboard() {
 
                                                             <p
                                                                 className={`font-semibold ${isIncome
-                                                                        ? "text-emerald-400"
-                                                                        : "text-rose-400"
+                                                                    ? "text-emerald-400"
+                                                                    : "text-rose-400"
                                                                     }`}
                                                             >
                                                                 {isIncome
