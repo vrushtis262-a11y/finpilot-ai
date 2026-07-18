@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
+import CategoryExpensePieChart from "../components/CategoryExpensePieChart";
 import MonthlyIncomeExpenseChart from "../components/MonthlyIncomeExpenseChart";
 
 type Transaction = {
@@ -26,6 +27,11 @@ type MonthlyAnalytics = {
     balance: number;
 };
 
+type CategoryExpense = {
+    category: string;
+    total: number;
+};
+
 const emptySummary: AnalyticsSummary = {
     total_income: 0,
     total_expense: 0,
@@ -42,6 +48,9 @@ function Dashboard() {
         useState<AnalyticsSummary>(emptySummary);
     const [monthlyAnalytics, setMonthlyAnalytics] = useState<
         MonthlyAnalytics[]
+    >([]);
+    const [categoryExpenses, setCategoryExpenses] = useState<
+        CategoryExpense[]
     >([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
@@ -64,6 +73,7 @@ function Dashboard() {
                 transactionsResponse,
                 summaryResponse,
                 monthlyResponse,
+                categoryExpensesResponse,
             ] = await Promise.all([
                 fetch("http://127.0.0.1:8000/transactions", {
                     headers: {
@@ -80,12 +90,21 @@ function Dashboard() {
                         Authorization: `Bearer ${token}`,
                     },
                 }),
+                fetch(
+                    "http://127.0.0.1:8000/analytics/category-expenses",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                ),
             ]);
 
             if (
                 transactionsResponse.status === 401 ||
                 summaryResponse.status === 401 ||
-                monthlyResponse.status === 401
+                monthlyResponse.status === 401 ||
+                categoryExpensesResponse.status === 401
             ) {
                 handleUnauthorized();
                 return;
@@ -95,6 +114,8 @@ function Dashboard() {
                 await transactionsResponse.json();
             const summaryData = await summaryResponse.json();
             const monthlyData = await monthlyResponse.json();
+            const categoryExpensesData =
+                await categoryExpensesResponse.json();
 
             if (!transactionsResponse.ok) {
                 throw new Error(
@@ -120,9 +141,18 @@ function Dashboard() {
                 );
             }
 
+            if (!categoryExpensesResponse.ok) {
+                throw new Error(
+                    typeof categoryExpensesData.detail === "string"
+                        ? categoryExpensesData.detail
+                        : "Could not load category analytics."
+                );
+            }
+
             setTransactions(transactionsData);
             setSummary(summaryData);
             setMonthlyAnalytics(monthlyData);
+            setCategoryExpenses(categoryExpensesData);
         } catch (err) {
             console.error(err);
 
@@ -326,26 +356,27 @@ function Dashboard() {
                     ))}
                 </div>
 
-                <div className="mt-8">
+                <div className="mt-8 grid gap-6 xl:grid-cols-2">
                     {isLoading ? (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
-                            Loading monthly analytics...
-                        </div>
-                    ) : monthlyAnalytics.length > 0 ? (
-                        <MonthlyIncomeExpenseChart
-                            data={monthlyAnalytics}
-                        />
-                    ) : (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-                            <h2 className="text-xl font-semibold">
-                                Monthly Income vs Expenses
-                            </h2>
+                        <>
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+                                Loading monthly analytics...
+                            </div>
 
-                            <p className="mt-2 text-slate-400">
-                                Add transactions to display your monthly
-                                analytics chart.
-                            </p>
-                        </div>
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+                                Loading category analytics...
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <MonthlyIncomeExpenseChart
+                                data={monthlyAnalytics}
+                            />
+
+                            <CategoryExpensePieChart
+                                data={categoryExpenses}
+                            />
+                        </>
                     )}
                 </div>
 

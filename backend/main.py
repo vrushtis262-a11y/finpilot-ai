@@ -15,7 +15,10 @@ app = FastAPI(title="FinPilot AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -205,6 +208,104 @@ def get_analytics_summary(
         "balance": total_income - total_expense,
         "transaction_count": int(summary.transaction_count),
     }
+
+
+@app.get("/analytics/monthly")
+def get_monthly_analytics(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    month_expression = func.strftime(
+        "%Y-%m",
+        models.Transaction.transaction_date,
+    )
+
+    monthly_results = (
+        db.query(
+            month_expression.label("month"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            models.Transaction.transaction_type == "income",
+                            models.Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            models.Transaction.transaction_type == "expense",
+                            models.Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_expense"),
+        )
+        .filter(models.Transaction.user_id == current_user.id)
+        .group_by(month_expression)
+        .order_by(month_expression.asc())
+        .all()
+    )
+
+    return [
+        {
+            "month": result.month,
+            "total_income": float(result.total_income),
+            "total_expense": float(result.total_expense),
+            "balance": float(
+                result.total_income - result.total_expense
+            ),
+        }
+        for result in monthly_results
+    ]
+
+
+@app.get("/analytics/category-expenses")
+def get_category_expenses(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    category_expression = func.coalesce(
+        func.nullif(
+            func.trim(models.Transaction.category),
+            "",
+        ),
+        "Uncategorized",
+    )
+
+    category_results = (
+        db.query(
+            category_expression.label("category"),
+            func.coalesce(
+                func.sum(models.Transaction.amount),
+                0,
+            ).label("total"),
+        )
+        .filter(
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.transaction_type == "expense",
+        )
+        .group_by(category_expression)
+        .order_by(
+            func.sum(models.Transaction.amount).desc()
+        )
+        .all()
+    )
+
+    return [
+        {
+            "category": result.category,
+            "total": float(result.total),
+        }
+        for result in category_results
+    ]
 
 
 @app.get(
