@@ -8,6 +8,7 @@ import auth
 import models
 import schemas
 from database import engine, get_db
+from routes import budgets, transactions
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -23,6 +24,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(transactions.router)
+app.include_router(budgets.router)
 
 security = HTTPBearer()
 
@@ -68,29 +72,6 @@ def get_current_user(
         )
 
     return user
-
-
-def get_user_transaction(
-    transaction_id: int,
-    current_user: models.User,
-    db: Session,
-):
-    transaction = (
-        db.query(models.Transaction)
-        .filter(
-            models.Transaction.id == transaction_id,
-            models.Transaction.user_id == current_user.id,
-        )
-        .first()
-    )
-
-    if transaction is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Transaction not found",
-        )
-
-    return transaction
 
 
 @app.get("/")
@@ -153,7 +134,10 @@ def login_user(
         )
 
     access_token = auth.create_access_token(
-        {"sub": str(user.id), "email": user.email}
+        {
+            "sub": str(user.id),
+            "email": user.email,
+        }
     )
 
     return {
@@ -173,7 +157,8 @@ def get_analytics_summary(
                 func.sum(
                     case(
                         (
-                            models.Transaction.transaction_type == "income",
+                            models.Transaction.transaction_type
+                            == "income",
                             models.Transaction.amount,
                         ),
                         else_=0,
@@ -185,7 +170,8 @@ def get_analytics_summary(
                 func.sum(
                     case(
                         (
-                            models.Transaction.transaction_type == "expense",
+                            models.Transaction.transaction_type
+                            == "expense",
                             models.Transaction.amount,
                         ),
                         else_=0,
@@ -193,9 +179,13 @@ def get_analytics_summary(
                 ),
                 0,
             ).label("total_expense"),
-            func.count(models.Transaction.id).label("transaction_count"),
+            func.count(
+                models.Transaction.id
+            ).label("transaction_count"),
         )
-        .filter(models.Transaction.user_id == current_user.id)
+        .filter(
+            models.Transaction.user_id == current_user.id
+        )
         .one()
     )
 
@@ -206,7 +196,9 @@ def get_analytics_summary(
         "total_income": total_income,
         "total_expense": total_expense,
         "balance": total_income - total_expense,
-        "transaction_count": int(summary.transaction_count),
+        "transaction_count": int(
+            summary.transaction_count
+        ),
     }
 
 
@@ -227,7 +219,8 @@ def get_monthly_analytics(
                 func.sum(
                     case(
                         (
-                            models.Transaction.transaction_type == "income",
+                            models.Transaction.transaction_type
+                            == "income",
                             models.Transaction.amount,
                         ),
                         else_=0,
@@ -239,7 +232,8 @@ def get_monthly_analytics(
                 func.sum(
                     case(
                         (
-                            models.Transaction.transaction_type == "expense",
+                            models.Transaction.transaction_type
+                            == "expense",
                             models.Transaction.amount,
                         ),
                         else_=0,
@@ -248,7 +242,9 @@ def get_monthly_analytics(
                 0,
             ).label("total_expense"),
         )
-        .filter(models.Transaction.user_id == current_user.id)
+        .filter(
+            models.Transaction.user_id == current_user.id
+        )
         .group_by(month_expression)
         .order_by(month_expression.asc())
         .all()
@@ -260,7 +256,8 @@ def get_monthly_analytics(
             "total_income": float(result.total_income),
             "total_expense": float(result.total_expense),
             "balance": float(
-                result.total_income - result.total_expense
+                result.total_income
+                - result.total_expense
             ),
         }
         for result in monthly_results
@@ -290,11 +287,14 @@ def get_category_expenses(
         )
         .filter(
             models.Transaction.user_id == current_user.id,
-            models.Transaction.transaction_type == "expense",
+            models.Transaction.transaction_type
+            == "expense",
         )
         .group_by(category_expression)
         .order_by(
-            func.sum(models.Transaction.amount).desc()
+            func.sum(
+                models.Transaction.amount
+            ).desc()
         )
         .all()
     )
@@ -306,99 +306,3 @@ def get_category_expenses(
         }
         for result in category_results
     ]
-
-
-@app.get(
-    "/transactions",
-    response_model=list[schemas.TransactionResponse],
-)
-def get_transactions(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    transactions = (
-        db.query(models.Transaction)
-        .filter(models.Transaction.user_id == current_user.id)
-        .order_by(
-            models.Transaction.transaction_date.desc(),
-            models.Transaction.id.desc(),
-        )
-        .all()
-    )
-
-    return transactions
-
-
-@app.post(
-    "/transactions",
-    response_model=schemas.TransactionResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_transaction(
-    transaction_data: schemas.TransactionCreate,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    new_transaction = models.Transaction(
-        title=transaction_data.title.strip(),
-        amount=transaction_data.amount,
-        category=transaction_data.category.strip(),
-        transaction_type=transaction_data.transaction_type,
-        transaction_date=transaction_data.transaction_date,
-        user_id=current_user.id,
-    )
-
-    db.add(new_transaction)
-    db.commit()
-    db.refresh(new_transaction)
-
-    return new_transaction
-
-
-@app.put(
-    "/transactions/{transaction_id}",
-    response_model=schemas.TransactionResponse,
-)
-def update_transaction(
-    transaction_id: int,
-    transaction_data: schemas.TransactionUpdate,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    transaction = get_user_transaction(
-        transaction_id=transaction_id,
-        current_user=current_user,
-        db=db,
-    )
-
-    transaction.title = transaction_data.title.strip()
-    transaction.amount = transaction_data.amount
-    transaction.category = transaction_data.category.strip()
-    transaction.transaction_type = transaction_data.transaction_type
-    transaction.transaction_date = transaction_data.transaction_date
-
-    db.commit()
-    db.refresh(transaction)
-
-    return transaction
-
-
-@app.delete(
-    "/transactions/{transaction_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_transaction(
-    transaction_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    transaction = get_user_transaction(
-        transaction_id=transaction_id,
-        current_user=current_user,
-        db=db,
-    )
-
-    db.delete(transaction)
-    db.commit()
-
-    return None
