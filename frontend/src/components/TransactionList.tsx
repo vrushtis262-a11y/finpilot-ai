@@ -12,7 +12,10 @@ type Transaction = {
 };
 
 type TransactionTypeFilter = "all" | "income" | "expense";
-type TransactionSortBy = "transaction_date" | "amount" | "title";
+type TransactionSortBy =
+    | "transaction_date"
+    | "amount"
+    | "title";
 type TransactionSortOrder = "asc" | "desc";
 
 type TransactionListProps = {
@@ -46,23 +49,32 @@ function TransactionList({
     const [searchTerm, setSearchTerm] = useState("");
     const [typeFilter, setTypeFilter] =
         useState<TransactionTypeFilter>("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] =
+        useState("all");
     const [currentPage, setCurrentPage] = useState(1);
-    const [isExporting, setIsExporting] = useState(false);
-    const [exportError, setExportError] = useState("");
+    const [isExporting, setIsExporting] =
+        useState(false);
+    const [exportError, setExportError] =
+        useState("");
 
     const categories = useMemo(() => {
         return Array.from(
             new Set(
                 transactions
-                    .map((transaction) => transaction.category.trim())
+                    .map((transaction) =>
+                        transaction.category.trim()
+                    )
                     .filter(Boolean)
             )
-        ).sort((first, second) => first.localeCompare(second));
+        ).sort((first, second) =>
+            first.localeCompare(second)
+        );
     }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
-        const normalizedSearch = searchTerm.trim().toLowerCase();
+        const normalizedSearch = searchTerm
+            .trim()
+            .toLowerCase();
 
         return transactions.filter((transaction) => {
             const matchesSearch =
@@ -98,22 +110,31 @@ function TransactionList({
     const totalPages = Math.max(
         1,
         Math.ceil(
-            filteredTransactions.length / TRANSACTIONS_PER_PAGE
+            filteredTransactions.length /
+            TRANSACTIONS_PER_PAGE
         )
     );
 
     const paginatedTransactions = useMemo(() => {
         const startIndex =
-            (currentPage - 1) * TRANSACTIONS_PER_PAGE;
-        const endIndex = startIndex + TRANSACTIONS_PER_PAGE;
+            (currentPage - 1) *
+            TRANSACTIONS_PER_PAGE;
 
-        return filteredTransactions.slice(startIndex, endIndex);
+        const endIndex =
+            startIndex + TRANSACTIONS_PER_PAGE;
+
+        return filteredTransactions.slice(
+            startIndex,
+            endIndex
+        );
     }, [currentPage, filteredTransactions]);
 
     const firstVisibleTransaction =
         filteredTransactions.length === 0
             ? 0
-            : (currentPage - 1) * TRANSACTIONS_PER_PAGE + 1;
+            : (currentPage - 1) *
+            TRANSACTIONS_PER_PAGE +
+            1;
 
     const lastVisibleTransaction = Math.min(
         currentPage * TRANSACTIONS_PER_PAGE,
@@ -163,7 +184,9 @@ function TransactionList({
     };
 
     const handlePreviousPage = () => {
-        setCurrentPage((page) => Math.max(1, page - 1));
+        setCurrentPage((page) =>
+            Math.max(1, page - 1)
+        );
     };
 
     const handleNextPage = () => {
@@ -173,7 +196,8 @@ function TransactionList({
     };
 
     const handleExportCsv = async () => {
-        const token = localStorage.getItem("token");
+        const token =
+            localStorage.getItem("token");
 
         if (!token) {
             navigate("/login");
@@ -200,12 +224,17 @@ function TransactionList({
             }
 
             if (!response.ok) {
-                let message = "Could not export transactions.";
+                let message =
+                    "Could not export transactions.";
 
                 try {
-                    const data = await response.json();
+                    const data =
+                        await response.json();
 
-                    if (typeof data.detail === "string") {
+                    if (
+                        typeof data.detail ===
+                        "string"
+                    ) {
                         message = data.detail;
                     }
                 } catch {
@@ -217,14 +246,23 @@ function TransactionList({
                 throw new Error(message);
             }
 
-            const csvBlob = await response.blob();
-            const downloadUrl = URL.createObjectURL(csvBlob);
-            const downloadLink = document.createElement("a");
+            const csvBlob =
+                await response.blob();
+
+            const downloadUrl =
+                URL.createObjectURL(csvBlob);
+
+            const downloadLink =
+                document.createElement("a");
 
             downloadLink.href = downloadUrl;
-            downloadLink.download = "finpilot-transactions.csv";
+            downloadLink.download =
+                "finpilot-transactions.csv";
 
-            document.body.appendChild(downloadLink);
+            document.body.appendChild(
+                downloadLink
+            );
+
             downloadLink.click();
             downloadLink.remove();
 
@@ -243,16 +281,20 @@ function TransactionList({
     };
 
     return (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 lg:col-span-2">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg shadow-black/10 sm:p-6 lg:col-span-2">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-xl font-semibold">
+                    <p className="text-sm font-semibold text-cyan-400">
+                        Activity
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-semibold text-white">
                         Recent transactions
                     </h2>
 
-                    <p className="mt-1 text-sm text-slate-400">
-                        Search, filter, sort, export, and browse
-                        your income and expenses.
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Search, filter, sort, export, and
+                        manage your income and expenses.
                     </p>
                 </div>
 
@@ -265,7 +307,7 @@ function TransactionList({
                             isLoading ||
                             transactions.length === 0
                         }
-                        className="rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-xl border border-cyan-400/40 px-4 py-2.5 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isExporting
                             ? "Exporting..."
@@ -275,9 +317,11 @@ function TransactionList({
                     <button
                         type="button"
                         onClick={() =>
-                            navigate("/add-transaction")
+                            navigate(
+                                "/add-transaction"
+                            )
                         }
-                        className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
+                        className="rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-900"
                     >
                         Add transaction
                     </button>
@@ -285,205 +329,298 @@ function TransactionList({
             </div>
 
             {exportError && (
-                <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-rose-300">
-                    {exportError}
-                </p>
+                <div
+                    role="alert"
+                    className="mt-5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4"
+                >
+                    <p className="font-medium text-rose-300">
+                        Export failed
+                    </p>
+
+                    <p className="mt-1 text-sm text-rose-200">
+                        {exportError}
+                    </p>
+                </div>
             )}
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                <div className="md:col-span-2">
-                    <label
-                        htmlFor="transaction-search"
-                        className="mb-2 block text-sm font-medium text-slate-300"
-                    >
-                        Search
-                    </label>
+            <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                    <div className="md:col-span-2">
+                        <label
+                            htmlFor="transaction-search"
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                            Search
+                        </label>
 
-                    <input
-                        id="transaction-search"
-                        type="search"
-                        value={searchTerm}
-                        onChange={(event) =>
-                            setSearchTerm(event.target.value)
-                        }
-                        placeholder="Search title or category"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
-                    />
-                </div>
+                        <input
+                            id="transaction-search"
+                            type="search"
+                            value={searchTerm}
+                            onChange={(event) =>
+                                setSearchTerm(
+                                    event.target.value
+                                )
+                            }
+                            placeholder="Search title or category"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                        />
+                    </div>
 
-                <div>
-                    <label
-                        htmlFor="type-filter"
-                        className="mb-2 block text-sm font-medium text-slate-300"
-                    >
-                        Type
-                    </label>
+                    <div>
+                        <label
+                            htmlFor="type-filter"
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                            Type
+                        </label>
 
-                    <select
-                        id="type-filter"
-                        value={typeFilter}
-                        onChange={(event) =>
-                            setTypeFilter(
-                                event.target
-                                    .value as TransactionTypeFilter
-                            )
-                        }
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                    >
-                        <option value="all">All types</option>
-                        <option value="income">Income</option>
-                        <option value="expense">Expense</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label
-                        htmlFor="category-filter"
-                        className="mb-2 block text-sm font-medium text-slate-300"
-                    >
-                        Category
-                    </label>
-
-                    <select
-                        id="category-filter"
-                        value={categoryFilter}
-                        onChange={(event) =>
-                            setCategoryFilter(event.target.value)
-                        }
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                    >
-                        <option value="all">
-                            All categories
-                        </option>
-
-                        {categories.map((category) => (
-                            <option
-                                key={category}
-                                value={category}
-                            >
-                                {category}
+                        <select
+                            id="type-filter"
+                            value={typeFilter}
+                            onChange={(event) =>
+                                setTypeFilter(
+                                    event.target
+                                        .value as TransactionTypeFilter
+                                )
+                            }
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                        >
+                            <option value="all">
+                                All types
                             </option>
-                        ))}
-                    </select>
+                            <option value="income">
+                                Income
+                            </option>
+                            <option value="expense">
+                                Expense
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="category-filter"
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                            Category
+                        </label>
+
+                        <select
+                            id="category-filter"
+                            value={categoryFilter}
+                            onChange={(event) =>
+                                setCategoryFilter(
+                                    event.target.value
+                                )
+                            }
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                        >
+                            <option value="all">
+                                All categories
+                            </option>
+
+                            {categories.map(
+                                (category) => (
+                                    <option
+                                        key={category}
+                                        value={category}
+                                    >
+                                        {category}
+                                    </option>
+                                )
+                            )}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="sort-by"
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                            Sort by
+                        </label>
+
+                        <select
+                            id="sort-by"
+                            value={sortBy}
+                            onChange={(event) =>
+                                onSortChange(
+                                    event.target
+                                        .value as TransactionSortBy,
+                                    sortOrder
+                                )
+                            }
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                        >
+                            <option value="transaction_date">
+                                Date
+                            </option>
+                            <option value="amount">
+                                Amount
+                            </option>
+                            <option value="title">
+                                Title
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="sort-order"
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                            Order
+                        </label>
+
+                        <select
+                            id="sort-order"
+                            value={sortOrder}
+                            onChange={(event) =>
+                                onSortChange(
+                                    sortBy,
+                                    event.target
+                                        .value as TransactionSortOrder
+                                )
+                            }
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                        >
+                            <option value="desc">
+                                Descending
+                            </option>
+                            <option value="asc">
+                                Ascending
+                            </option>
+                        </select>
+                    </div>
                 </div>
 
-                <div>
-                    <label
-                        htmlFor="sort-by"
-                        className="mb-2 block text-sm font-medium text-slate-300"
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p
+                        className="text-sm text-slate-400"
+                        aria-live="polite"
                     >
-                        Sort by
-                    </label>
+                        Showing{" "}
+                        {filteredTransactions.length} of{" "}
+                        {transactions.length}{" "}
+                        transaction(s)
+                    </p>
 
-                    <select
-                        id="sort-by"
-                        value={sortBy}
-                        onChange={(event) =>
-                            onSortChange(
-                                event.target.value as TransactionSortBy,
-                                sortOrder
-                            )
-                        }
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                    >
-                        <option value="transaction_date">
-                            Date
-                        </option>
-                        <option value="amount">Amount</option>
-                        <option value="title">Title</option>
-                    </select>
+                    {filtersAreActive && (
+                        <button
+                            type="button"
+                            onClick={
+                                handleResetFilters
+                            }
+                            className="self-start rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 sm:self-auto"
+                        >
+                            Reset filters
+                        </button>
+                    )}
                 </div>
-
-                <div>
-                    <label
-                        htmlFor="sort-order"
-                        className="mb-2 block text-sm font-medium text-slate-300"
-                    >
-                        Order
-                    </label>
-
-                    <select
-                        id="sort-order"
-                        value={sortOrder}
-                        onChange={(event) =>
-                            onSortChange(
-                                sortBy,
-                                event.target.value as TransactionSortOrder
-                            )
-                        }
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                    >
-                        <option value="desc">
-                            Descending
-                        </option>
-                        <option value="asc">Ascending</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-slate-400">
-                    Showing {filteredTransactions.length} of{" "}
-                    {transactions.length} transaction(s)
-                </p>
-
-                {filtersAreActive && (
-                    <button
-                        type="button"
-                        onClick={handleResetFilters}
-                        className="self-start rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 sm:self-auto"
-                    >
-                        Reset filters
-                    </button>
-                )}
             </div>
 
             <div className="mt-6">
                 {isLoading && (
-                    <p className="text-slate-400">
-                        Loading dashboard...
-                    </p>
+                    <div
+                        aria-label="Loading transactions"
+                        className="space-y-4"
+                    >
+                        {Array.from({
+                            length: 3,
+                        }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="animate-pulse rounded-xl border border-slate-800 bg-slate-950 p-4"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="w-full max-w-xs">
+                                        <div className="h-4 w-40 rounded bg-slate-800" />
+                                        <div className="mt-3 h-3 w-24 rounded bg-slate-800" />
+                                        <div className="mt-2 h-3 w-32 rounded bg-slate-800" />
+                                    </div>
+
+                                    <div className="h-4 w-20 rounded bg-slate-800" />
+                                </div>
+
+                                <div className="mt-5 flex justify-end gap-3">
+                                    <div className="h-9 w-16 rounded-lg bg-slate-800" />
+                                    <div className="h-9 w-20 rounded-lg bg-slate-800" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
 
                 {!isLoading && error && (
-                    <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-rose-300">
-                        {error}
-                    </p>
+                    <div
+                        role="alert"
+                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-5"
+                    >
+                        <p className="font-semibold text-rose-300">
+                            Could not load transactions
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-rose-200">
+                            {error}
+                        </p>
+                    </div>
                 )}
 
                 {!isLoading &&
                     transactions.length === 0 &&
                     !error && (
-                        <div className="rounded-xl bg-slate-950 p-6 text-center">
-                            <p className="font-medium">
+                        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/70 px-6 py-10 text-center">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xl text-cyan-400">
+                                $
+                            </div>
+
+                            <p className="mt-4 font-semibold text-white">
                                 No transactions yet
                             </p>
 
-                            <p className="mt-2 text-sm text-slate-500">
-                                Add your first income or expense to
-                                get started.
+                            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
+                                Add your first income or
+                                expense to begin tracking
+                                your financial activity.
                             </p>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    navigate(
+                                        "/add-transaction"
+                                    )
+                                }
+                                className="mt-5 rounded-xl bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950"
+                            >
+                                Add your first transaction
+                            </button>
                         </div>
                     )}
 
                 {!isLoading &&
                     transactions.length > 0 &&
-                    filteredTransactions.length === 0 &&
+                    filteredTransactions.length ===
+                    0 &&
                     !error && (
-                        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950 p-6 text-center">
-                            <p className="font-medium">
+                        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/70 px-6 py-10 text-center">
+                            <p className="font-semibold text-white">
                                 No matching transactions
                             </p>
 
-                            <p className="mt-2 text-sm text-slate-500">
-                                Try changing your search or filter
-                                options.
+                            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
+                                No transactions match your
+                                current search and filter
+                                settings.
                             </p>
 
                             <button
                                 type="button"
-                                onClick={handleResetFilters}
-                                className="mt-4 rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                                onClick={
+                                    handleResetFilters
+                                }
+                                className="mt-5 rounded-xl border border-cyan-400/40 px-4 py-2.5 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                             >
                                 Reset filters
                             </button>
@@ -491,11 +628,14 @@ function TransactionList({
                     )}
 
                 {!isLoading &&
-                    paginatedTransactions.length > 0 && (
+                    paginatedTransactions.length >
+                    0 && (
                         <>
                             <div className="space-y-4">
                                 {paginatedTransactions.map(
-                                    (transaction) => {
+                                    (
+                                        transaction
+                                    ) => {
                                         const isIncome =
                                             transaction.transaction_type ===
                                             "income";
@@ -505,25 +645,40 @@ function TransactionList({
                                             transaction.id;
 
                                         return (
-                                            <div
-                                                key={transaction.id}
-                                                className="rounded-xl bg-slate-950 p-4"
+                                            <article
+                                                key={
+                                                    transaction.id
+                                                }
+                                                className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 transition hover:border-slate-700"
                                             >
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div>
-                                                        <p className="font-medium">
-                                                            {
-                                                                transaction.title
-                                                            }
-                                                        </p>
+                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="break-words font-semibold text-white">
+                                                                {
+                                                                    transaction.title
+                                                                }
+                                                            </p>
 
-                                                        <p className="mt-1 text-sm text-slate-500">
+                                                            <span
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isIncome
+                                                                    ? "bg-emerald-500/10 text-emerald-300"
+                                                                    : "bg-rose-500/10 text-rose-300"
+                                                                    }`}
+                                                            >
+                                                                {isIncome
+                                                                    ? "Income"
+                                                                    : "Expense"}
+                                                            </span>
+                                                        </div>
+
+                                                        <p className="mt-2 text-sm text-slate-400">
                                                             {
                                                                 transaction.category
                                                             }
                                                         </p>
 
-                                                        <p className="mt-1 text-sm text-slate-600">
+                                                        <p className="mt-1 text-sm text-slate-500">
                                                             {formatDate(
                                                                 transaction.transaction_date
                                                             )}
@@ -531,7 +686,7 @@ function TransactionList({
                                                     </div>
 
                                                     <p
-                                                        className={`font-semibold ${isIncome
+                                                        className={`shrink-0 text-lg font-bold ${isIncome
                                                             ? "text-emerald-400"
                                                             : "text-rose-400"
                                                             }`}
@@ -545,7 +700,7 @@ function TransactionList({
                                                     </p>
                                                 </div>
 
-                                                <div className="mt-4 flex justify-end gap-3">
+                                                <div className="mt-5 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
                                                     <button
                                                         type="button"
                                                         onClick={() =>
@@ -553,7 +708,10 @@ function TransactionList({
                                                                 `/edit-transaction/${transaction.id}`
                                                             )
                                                         }
-                                                        className="rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                                                        disabled={
+                                                            isDeleting
+                                                        }
+                                                        className="rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         Edit
                                                     </button>
@@ -568,14 +726,14 @@ function TransactionList({
                                                         disabled={
                                                             isDeleting
                                                         }
-                                                        className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:border-rose-400 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:border-rose-400 hover:bg-rose-500/10 focus:outline-none focus:ring-2 focus:ring-rose-400/40 disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         {isDeleting
                                                             ? "Deleting..."
                                                             : "Delete"}
                                                     </button>
                                                 </div>
-                                            </div>
+                                            </article>
                                         );
                                     }
                                 )}
@@ -584,12 +742,20 @@ function TransactionList({
                             <div className="mt-6 flex flex-col gap-4 border-t border-slate-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-slate-400">
                                     Showing{" "}
-                                    {firstVisibleTransaction}–
-                                    {lastVisibleTransaction} of{" "}
-                                    {filteredTransactions.length}
+                                    {
+                                        firstVisibleTransaction
+                                    }
+                                    –
+                                    {
+                                        lastVisibleTransaction
+                                    }{" "}
+                                    of{" "}
+                                    {
+                                        filteredTransactions.length
+                                    }
                                 </p>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                                     <button
                                         type="button"
                                         onClick={
@@ -598,24 +764,29 @@ function TransactionList({
                                         disabled={
                                             currentPage === 1
                                         }
-                                        className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         Previous
                                     </button>
 
-                                    <span className="text-sm text-slate-400">
+                                    <span
+                                        className="text-center text-sm text-slate-400"
+                                        aria-live="polite"
+                                    >
                                         Page {currentPage} of{" "}
                                         {totalPages}
                                     </span>
 
                                     <button
                                         type="button"
-                                        onClick={handleNextPage}
+                                        onClick={
+                                            handleNextPage
+                                        }
                                         disabled={
                                             currentPage ===
                                             totalPages
                                         }
-                                        className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         Next
                                     </button>
@@ -628,5 +799,9 @@ function TransactionList({
     );
 }
 
-export type { TransactionSortBy, TransactionSortOrder };
+export type {
+    TransactionSortBy,
+    TransactionSortOrder,
+};
+
 export default TransactionList;

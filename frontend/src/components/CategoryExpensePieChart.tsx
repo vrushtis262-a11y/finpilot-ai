@@ -40,26 +40,66 @@ function CategoryExpensePieChart({ data }: Props) {
         0
     );
 
-    return (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <div>
-                <h2 className="text-xl font-semibold text-white">
-                    Expenses by Category
-                </h2>
+    const largestCategory =
+        data.length === 0
+            ? null
+            : data.reduce((largest, item) =>
+                item.total > largest.total ? item : largest
+            );
 
-                <p className="mt-1 text-sm text-slate-400">
-                    See where most of your money is being spent.
-                </p>
+    return (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg shadow-black/10 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-sm font-semibold text-cyan-400">
+                        Spending breakdown
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-semibold text-white">
+                        Expenses by category
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                        See which categories account for most of your spending.
+                    </p>
+                </div>
+
+                {largestCategory && (
+                    <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 sm:min-w-44">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                            Largest category
+                        </p>
+
+                        <p className="mt-1 truncate font-semibold text-white">
+                            {largestCategory.category}
+                        </p>
+
+                        <p className="mt-1 text-sm text-cyan-300">
+                            {formatCurrency(largestCategory.total)}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {data.length === 0 ? (
-                <div className="mt-6 flex h-80 items-center justify-center rounded-xl border border-dashed border-slate-700">
-                    <p className="text-sm text-slate-400">
-                        Add expense transactions to view category analytics.
-                    </p>
+                <div className="mt-6 flex min-h-80 items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-6 text-center">
+                    <div>
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xl text-cyan-400">
+                            %
+                        </div>
+
+                        <p className="mt-4 font-semibold text-white">
+                            No category data yet
+                        </p>
+
+                        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">
+                            Add expense transactions to see how your spending is
+                            distributed across categories.
+                        </p>
+                    </div>
                 </div>
             ) : (
-                <div className="mt-6 h-80">
+                <div className="relative mt-6 h-80">
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
@@ -67,9 +107,9 @@ function CategoryExpensePieChart({ data }: Props) {
                                 dataKey="total"
                                 nameKey="category"
                                 cx="50%"
-                                cy="45%"
-                                innerRadius={65}
-                                outerRadius={105}
+                                cy="43%"
+                                innerRadius={66}
+                                outerRadius={104}
                                 paddingAngle={3}
                                 stroke="none"
                             >
@@ -98,6 +138,9 @@ function CategoryExpensePieChart({ data }: Props) {
                                 itemStyle={{
                                     color: "#f8fafc",
                                 }}
+                                labelStyle={{
+                                    color: "#cbd5e1",
+                                }}
                                 formatter={(value) => [
                                     formatCurrency(Number(value)),
                                     "Expenses",
@@ -115,16 +158,18 @@ function CategoryExpensePieChart({ data }: Props) {
                         </PieChart>
                     </ResponsiveContainer>
 
-                    <p className="-mt-44 text-center text-sm text-slate-400">
-                        Total expenses
-                    </p>
+                    <div className="pointer-events-none absolute inset-x-0 top-[39%] -translate-y-1/2 text-center">
+                        <p className="text-sm text-slate-400">
+                            Total expenses
+                        </p>
 
-                    <p className="mt-1 text-center text-xl font-bold text-white">
-                        {formatCurrency(totalExpenses)}
-                    </p>
+                        <p className="mt-1 text-xl font-bold text-white">
+                            {formatCurrency(totalExpenses)}
+                        </p>
+                    </div>
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
