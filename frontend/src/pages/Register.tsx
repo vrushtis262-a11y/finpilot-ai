@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { API_BASE_URL } from "../constants/api";
 
 function Register() {
+    const navigate = useNavigate();
+
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -12,7 +14,7 @@ function Register() {
         e.preventDefault();
 
         try {
-            const response = await fetch(`${API_BASE_URL}/register`, {
+            const registerResponse = await fetch(`${API_BASE_URL}/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -24,18 +26,38 @@ function Register() {
                 }),
             });
 
-            const data = await response.json();
+            const registerData = await registerResponse.json();
 
-            if (response.ok) {
-                alert("Registration successful!");
-                console.log(data);
-            } else {
+            if (!registerResponse.ok) {
                 const message =
-                    typeof data.detail === "string"
-                        ? data.detail
+                    typeof registerData.detail === "string"
+                        ? registerData.detail
                         : "Registration failed. Check your information.";
 
                 alert(message);
+                return;
+            }
+
+            const loginResponse = await fetch(`${API_BASE_URL}/login`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                }),
+            });
+
+            const loginData = await loginResponse.json();
+
+            if (loginResponse.ok) {
+                localStorage.setItem("token", loginData.access_token);
+                alert("Registration successful!");
+                navigate("/dashboard");
+            } else {
+                alert("Account created. Please log in.");
+                navigate("/login");
             }
         } catch (error) {
             console.error(error);
