@@ -8,9 +8,19 @@ function Login() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!normalizedEmail || !password) {
+            alert("Please enter your email and password.");
+            return;
+        }
+
+        setIsSubmitting(true);
 
         try {
             const response = await fetch(`${API_BASE_URL}/login`, {
@@ -19,23 +29,26 @@ function Login() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    email,
+                    email: normalizedEmail,
                     password,
                 }),
             });
 
             const data = await response.json();
 
-            if (response.ok) {
-                localStorage.setItem("token", data.access_token);
-                alert("Login successful!");
-                navigate("/dashboard");
-            } else {
-                alert(data.detail || "Invalid email or password.");
+            if (!response.ok) {
+                alert(data.detail || "Incorrect email or password.");
+                return;
             }
+
+            localStorage.setItem("token", data.access_token);
+
+            navigate("/dashboard");
         } catch (error) {
-            console.error(error);
+            console.error("Login request failed:", error);
             alert("Cannot connect to backend.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -46,13 +59,18 @@ function Login() {
                     FinPilot <span className="text-cyan-400">AI</span>
                 </Link>
 
-                <h1 className="mt-8 text-3xl font-bold">Welcome back</h1>
+                <h1 className="mt-8 text-3xl font-bold">
+                    Welcome back
+                </h1>
 
                 <p className="mt-2 text-slate-400">
                     Sign in to continue to your financial dashboard.
                 </p>
 
-                <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                <form
+                    onSubmit={handleSubmit}
+                    className="mt-8 space-y-5"
+                >
                     <div>
                         <label
                             htmlFor="email"
@@ -63,10 +81,14 @@ function Login() {
 
                         <input
                             id="email"
+                            name="email"
                             type="email"
                             placeholder="you@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            autoComplete="email"
+                            autoCapitalize="none"
+                            spellCheck={false}
                             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                             required
                         />
@@ -82,10 +104,12 @@ function Login() {
 
                         <input
                             id="password"
+                            name="password"
                             type="password"
                             placeholder="Enter your password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            autoComplete="current-password"
                             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                             required
                         />
@@ -93,9 +117,10 @@ function Login() {
 
                     <button
                         type="submit"
-                        className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+                        disabled={isSubmitting}
+                        className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Sign in
+                        {isSubmitting ? "Signing in..." : "Sign in"}
                     </button>
                 </form>
 

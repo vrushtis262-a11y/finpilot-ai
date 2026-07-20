@@ -1,19 +1,58 @@
 import csv
 import io
+from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 import auth
 import models
 import schemas
 from database import get_db
+from utils.csv_import import parse_csv_transactions
 
 router = APIRouter(tags=["transactions"])
 
 security = HTTPBearer()
+
+MAX_CSV_FILE_SIZE = 5 * 1024 * 1024
+
+
+class CsvImportTransaction(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    amount: float = Field(gt=0)
+    category: str = Field(min_length=1, max_length=100)
+    transaction_type: Literal["income", "expense"]
+    transaction_date: date
+
+    @field_validator("title", "category")
+    @classmethod
+    def validate_non_empty_text(cls, value: str) -> str:
+        cleaned_value = value.strip()
+
+        if not cleaned_value:
+            raise ValueError("Value cannot be empty")
+
+        return cleaned_value
+
+
+class CsvImportRequest(BaseModel):
+    transactions: list[CsvImportTransaction] = Field(
+        min_length=1,
+        max_length=1000,
+    )
 
 
 def get_current_user(
@@ -89,6 +128,45 @@ def sanitize_csv_text(value: str) -> str:
         return f"'{cleaned_value}"
 
     return cleaned_value
+
+
+def normalize_duplicate_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def build_transaction_fingerprint(
+    title: str,
+    amount: float,
+    transaction_type: str,
+    transaction_date,
+) -> tuple[str, float, str, str]:
+    return (
+        normalize_duplicate_text(title),
+        round(float(amount), 2),
+        transaction_type.strip().lower(),
+        transaction_date.isoformat(),
+    )
+
+
+def get_existing_transaction_fingerprints(
+    current_user: models.User,
+    db: Session,
+) -> set[tuple[str, float, str, str]]:
+    existing_transactions = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.user_id == current_user.id)
+        .all()
+    )
+
+    return {
+        build_transaction_fingerprint(
+            title=transaction.title,
+            amount=transaction.amount,
+            transaction_type=transaction.transaction_type,
+            transaction_date=transaction.transaction_date,
+        )
+        for transaction in existing_transactions
+    }
 
 
 def get_transaction_sort_columns(
@@ -195,6 +273,214 @@ def export_transactions_csv(
             )
         },
     )
+
+
+@router.post("/transactions/import/csv/preview")
+async def preview_csv_import(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    filename = file.filename or ""
+
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please upload a CSV file",
+        )
+
+    file_content = await file.read()
+
+    if not file_content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded CSV file is empty",
+        )
+
+    if len(file_content) > MAX_CSV_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="CSV files must be 5 MB or smaller",
+        )
+
+    try:
+        parsed_transactions, invalid_rows = parse_csv_transactions(
+            file_content=file_content,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    existing_fingerprints = get_existing_transaction_fingerprints(
+        current_user=current_user,
+        db=db,
+    )
+
+    csv_fingerprints: set[tuple[str, float, str, str]] = set()
+    preview_transactions: list[dict] = []
+    duplicate_count = 0
+
+    for index, transaction in enumerate(parsed_transactions):
+        fingerprint = build_transaction_fingerprint(
+            title=transaction["title"],
+            amount=transaction["amount"],
+            transaction_type=transaction["transaction_type"],
+            transaction_date=transaction["transaction_date"],
+        )
+
+        duplicate_reason = None
+
+        if fingerprint in existing_fingerprints:
+            duplicate_reason = "Already exists in FinPilot"
+        elif fingerprint in csv_fingerprints:
+            duplicate_reason = "Repeated within uploaded CSV"
+
+        is_duplicate = duplicate_reason is not None
+
+        if is_duplicate:
+            duplicate_count += 1
+
+        csv_fingerprints.add(fingerprint)
+
+        preview_transactions.append(
+            {
+                "preview_id": index + 1,
+                "row_number": transaction["row_number"],
+                "title": transaction["title"],
+                "amount": transaction["amount"],
+                "category": transaction["category"],
+                "transaction_type": transaction["transaction_type"],
+                "transaction_date": (
+                    transaction["transaction_date"].isoformat()
+                ),
+                "is_duplicate": is_duplicate,
+                "duplicate_reason": duplicate_reason,
+                "selected": not is_duplicate,
+            }
+        )
+
+    importable_count = len(preview_transactions) - duplicate_count
+
+    return {
+        "filename": filename,
+        "total_rows": (
+            len(preview_transactions)
+            + len(invalid_rows)
+        ),
+        "valid_count": len(preview_transactions),
+        "invalid_count": len(invalid_rows),
+        "duplicate_count": duplicate_count,
+        "importable_count": importable_count,
+        "transactions": preview_transactions,
+        "invalid_rows": invalid_rows,
+    }
+
+
+@router.post(
+    "/transactions/import/csv",
+    status_code=status.HTTP_201_CREATED,
+)
+def import_csv_transactions(
+    import_data: CsvImportRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    existing_fingerprints = get_existing_transaction_fingerprints(
+        current_user=current_user,
+        db=db,
+    )
+
+    request_fingerprints: set[tuple[str, float, str, str]] = set()
+    transactions_to_create: list[models.Transaction] = []
+    skipped_duplicates: list[dict] = []
+
+    for index, transaction_data in enumerate(import_data.transactions):
+        fingerprint = build_transaction_fingerprint(
+            title=transaction_data.title,
+            amount=transaction_data.amount,
+            transaction_type=transaction_data.transaction_type,
+            transaction_date=transaction_data.transaction_date,
+        )
+
+        duplicate_reason = None
+
+        if fingerprint in existing_fingerprints:
+            duplicate_reason = "Already exists in FinPilot"
+        elif fingerprint in request_fingerprints:
+            duplicate_reason = "Repeated within import request"
+
+        if duplicate_reason is not None:
+            skipped_duplicates.append(
+                {
+                    "index": index,
+                    "title": transaction_data.title,
+                    "reason": duplicate_reason,
+                }
+            )
+            continue
+
+        request_fingerprints.add(fingerprint)
+
+        transactions_to_create.append(
+            models.Transaction(
+                title=transaction_data.title,
+                amount=transaction_data.amount,
+                category=transaction_data.category,
+                transaction_type=transaction_data.transaction_type,
+                transaction_date=transaction_data.transaction_date,
+                user_id=current_user.id,
+            )
+        )
+
+    if not transactions_to_create:
+        return {
+            "message": "No new transactions were imported",
+            "requested_count": len(import_data.transactions),
+            "imported_count": 0,
+            "skipped_count": len(skipped_duplicates),
+            "skipped_duplicates": skipped_duplicates,
+            "transactions": [],
+        }
+
+    try:
+        db.add_all(transactions_to_create)
+        db.commit()
+
+        for transaction in transactions_to_create:
+            db.refresh(transaction)
+    except Exception as error:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to import transactions",
+        ) from error
+
+    return {
+        "message": (
+            f"Successfully imported {len(transactions_to_create)} "
+            "transaction(s)"
+        ),
+        "requested_count": len(import_data.transactions),
+        "imported_count": len(transactions_to_create),
+        "skipped_count": len(skipped_duplicates),
+        "skipped_duplicates": skipped_duplicates,
+        "transactions": [
+            {
+                "id": transaction.id,
+                "title": transaction.title,
+                "amount": transaction.amount,
+                "category": transaction.category,
+                "transaction_type": transaction.transaction_type,
+                "transaction_date": (
+                    transaction.transaction_date.isoformat()
+                ),
+            }
+            for transaction in transactions_to_create
+        ],
+    }
 
 
 @router.post(

@@ -16,11 +16,11 @@ app = FastAPI(title="FinPilot AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origins=[],
+    allow_origin_regex=(
+        r"https?://(localhost|127\.0\.0\.1):\d+"
+        r"|https://.*\.vercel\.app"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
