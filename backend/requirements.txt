@@ -1,0 +1,8 @@
+fastapi==0.139.0
+uvicorn==0.51.0
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+pydantic
+email-validator
