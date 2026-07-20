@@ -1,61 +1,180 @@
-# FinPilot AI
+---
 
-An AI-powered personal finance assistant that helps users understand, manage, and optimize their finances through intelligent insights, budgeting, and financial analysis.
+## Installation
 
-## Developer
+### 1. Clone the repository
 
-**Vrushti Shah**  
-Computer Science & Business Student  
-Stony Brook University
+```bash
+git clone https://github.com/<your-github-username>/FinPilot-AI.git
+cd FinPilot-AI
+```
+
+Replace `<your-github-username>` with your actual GitHub username.
 
 ---
 
-## Features
+## Backend Setup
 
-- AI-powered financial assistant
-- Expense tracking
-- Budget management
-- Financial insights and analytics
-- Secure user authentication
-- Interactive dashboard
+```bash
+cd backend
+```
 
-## Tech Stack
+Create a virtual environment:
 
-### Frontend
+```bash
+python -m venv venv
+```
 
-- React
-- TypeScript
-- Tailwind CSS
+Activate it.
+
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### macOS / Linux
+
+```bash
+source venv/bin/activate
+```
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the backend:
+
+```bash
+uvicorn main:app --reload
+```
+
+Backend URL:
+
+```
+http://127.0.0.1:8000
+```
+
+---
+
+## Frontend Setup
+
+Open another terminal.
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Frontend URL:
+
+```
+http://localhost:5173
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+
+- `POST /register`
+- `POST /login`
+
+### Transactions
+
+- `GET /transactions`
+- `POST /transactions`
+- `PUT /transactions/{id}`
+- `DELETE /transactions/{id}`
+
+### Analytics
+
+- `GET /analytics/summary`
+- `GET /analytics/monthly`
+- `GET /analytics/category-expenses`
+
+### Budget
+
+- `GET /budgets/summary/{month}`
+- `POST /budgets`
+- `PUT /budgets/{month}`
+---
+
+## Deployment
 
 ### Backend
 
-- Python
-- FastAPI
+The backend can be deployed on platforms such as:
 
-### AI
+- Render
+- Railway
 
-- OpenAI API
+After deployment, update the frontend API base URL to point to your deployed backend.
 
-### Database
+### Frontend
 
-- PostgreSQL
+The frontend can be deployed on:
 
-## Project Structure
+- Vercel
+- Netlify
 
-```text
-finpilot-ai/
-├── backend/
-├── frontend/
-├── docs/
-├── assets/
-├── README.md
-└── .gitignore
-```
+Configure the production API URL before deploying.
 
-## Project Status
+---
 
-Currently under development.
+## Screenshots
 
-## Goal
+Add screenshots after deployment.
 
-The goal of FinPilot AI is to build an intelligent financial assistant that empowers users to make smarter financial decisions through AI-powered budgeting, personalized insights, and financial planning.
+Suggested screenshots:
+
+- Home Page
+- Login Page
+- Register Page
+- Dashboard
+- Budget Card
+- Monthly Analytics
+- Expense Categories
+- Transactions List
+
+---
+
+## Future Improvements
+
+- CSV export
+- AI-powered spending recommendations
+- Savings goals
+- Recurring transactions
+- Email notifications
+- Multi-currency support
+- Dark/Light theme
+- Mobile application
+
+---
+
+## Author
+
+**Vrushti Shah**
+
+GitHub: https://github.com/<vrushtis262-a11y>
+
+
+---
+
+## License
+
+This project is licensed under the MIT License.
