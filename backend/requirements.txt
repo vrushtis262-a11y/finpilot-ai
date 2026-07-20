@@ -1,7 +1,7 @@
 fastapi==0.139.0
 uvicorn==0.51.0
 sqlalchemy
-passlib[bcrypt]
+pwdlib
 python-jose[cryptography]
 python-multipart
 pydantic
