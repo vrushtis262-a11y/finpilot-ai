@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 
+import { API_BASE_URL } from "../constants/api";
 import { TRANSACTION_CATEGORIES } from "../constants/categories";
 
 type TransactionType = "income" | "expense";
@@ -58,23 +59,20 @@ function AddTransaction() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(
-                "http://127.0.0.1:8000/transactions",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        title: cleanTitle,
-                        amount: numericAmount,
-                        category,
-                        transaction_type: type,
-                        transaction_date: transactionDate,
-                    }),
-                }
-            );
+            const response = await fetch(`${API_BASE_URL}/transactions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    title: cleanTitle,
+                    amount: numericAmount,
+                    category,
+                    transaction_type: type,
+                    transaction_date: transactionDate,
+                }),
+            });
 
             const data = await response.json();
 

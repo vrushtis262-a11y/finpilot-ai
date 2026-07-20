@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { API_BASE_URL } from "../constants/api";
+
 type Transaction = {
     id: number;
     title: string;
@@ -209,7 +211,7 @@ function TransactionList({
             setExportError("");
 
             const response = await fetch(
-                "http://127.0.0.1:8000/transactions/export/csv",
+                `${API_BASE_URL}/transactions/export/csv`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,

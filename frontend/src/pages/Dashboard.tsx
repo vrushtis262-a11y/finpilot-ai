@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
+import { API_BASE_URL } from "../constants/api";
 import BudgetForm from "../components/BudgetForm";
 import BudgetCard, {
     type BudgetSummary,
@@ -104,25 +105,25 @@ function Dashboard() {
                 budgetResponse,
             ] = await Promise.all([
                 fetch(
-                    `http://127.0.0.1:8000/transactions?sort_by=${transactionSortBy}&order=${transactionSortOrder}`,
+                    `${API_BASE_URL}/transactions?sort_by=${transactionSortBy}&order=${transactionSortOrder}`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
                     }
                 ),
-                fetch("http://127.0.0.1:8000/analytics/summary", {
+                fetch(`${API_BASE_URL}/analytics/summary`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
                 }),
-                fetch("http://127.0.0.1:8000/analytics/monthly", {
+                fetch(`${API_BASE_URL}/analytics/monthly`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
                 }),
                 fetch(
-                    "http://127.0.0.1:8000/analytics/category-expenses",
+                    `${API_BASE_URL}/analytics/category-expenses`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`,
@@ -130,7 +131,7 @@ function Dashboard() {
                     }
                 ),
                 fetch(
-                    `http://127.0.0.1:8000/budgets/summary/${currentMonth}`,
+                    `${API_BASE_URL}/budgets/summary/${currentMonth}`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`,
@@ -275,7 +276,7 @@ function Dashboard() {
             setError("");
 
             const response = await fetch(
-                `http://127.0.0.1:8000/transactions/${transaction.id}`,
+                `${API_BASE_URL}/transactions/${transaction.id}`,
                 {
                     method: "DELETE",
                     headers: {

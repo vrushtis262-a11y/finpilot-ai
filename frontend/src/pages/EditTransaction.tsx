@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 
+import { API_BASE_URL } from "../constants/api";
 import { TRANSACTION_CATEGORIES } from "../constants/categories";
 
 type TransactionType = "income" | "expense";
@@ -39,7 +40,7 @@ function EditTransaction() {
 
             try {
                 const response = await fetch(
-                    "http://127.0.0.1:8000/transactions",
+                    `${API_BASE_URL}/transactions`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`,
@@ -119,7 +120,7 @@ function EditTransaction() {
 
         try {
             const response = await fetch(
-                `http://127.0.0.1:8000/transactions/${id}`,
+                `${API_BASE_URL}/transactions/${id}`,
                 {
                     method: "PUT",
                     headers: {

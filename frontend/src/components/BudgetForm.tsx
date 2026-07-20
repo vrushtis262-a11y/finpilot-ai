@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
+import { API_BASE_URL } from "../constants/api";
+
 type BudgetFormProps = {
     isOpen: boolean;
     month: string;
@@ -96,8 +98,8 @@ function BudgetForm({
 
             const response = await fetch(
                 isEditing
-                    ? `http://127.0.0.1:8000/budgets/${month}`
-                    : "http://127.0.0.1:8000/budgets",
+                    ? `${API_BASE_URL}/budgets/${month}`
+                    : `${API_BASE_URL}/budgets`,
                 {
                     method: isEditing ? "PUT" : "POST",
                     headers: {
