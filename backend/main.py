@@ -1,6 +1,9 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
@@ -10,9 +13,13 @@ import schemas
 from database import engine, get_db
 from routes import budgets, receipts, transactions
 
+
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="FinPilot AI API")
+app = FastAPI(
+    title="FinPilot AI API",
+    version="1.0.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,10 +41,14 @@ security = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(
+        security
+    ),
     db: Session = Depends(get_db),
 ):
-    payload = auth.decode_access_token(credentials.credentials)
+    payload = auth.decode_access_token(
+        credentials.credentials
+    )
 
     if payload is None:
         raise HTTPException(
@@ -76,9 +87,34 @@ def get_current_user(
     return user
 
 
+def get_month_expression(db: Session):
+    dialect_name = db.get_bind().dialect.name
+
+    if dialect_name == "postgresql":
+        return func.to_char(
+            models.Transaction.transaction_date,
+            "YYYY-MM",
+        )
+
+    return func.strftime(
+        "%Y-%m",
+        models.Transaction.transaction_date,
+    )
+
+
 @app.get("/")
 def root():
-    return {"message": "Welcome to FinPilot AI"}
+    return {
+        "message": "Welcome to FinPilot AI",
+        "status": "healthy",
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+    }
 
 
 @app.post(
@@ -99,13 +135,17 @@ def register_user(
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An account with this email already exists",
+            detail=(
+                "An account with this email already exists"
+            ),
         )
 
     new_user = models.User(
         full_name=user_data.full_name,
         email=user_data.email,
-        hashed_password=auth.hash_password(user_data.password),
+        hashed_password=auth.hash_password(
+            user_data.password
+        ),
     )
 
     db.add(new_user)
@@ -115,7 +155,10 @@ def register_user(
     return new_user
 
 
-@app.post("/login", response_model=schemas.Token)
+@app.post(
+    "/login",
+    response_model=schemas.Token,
+)
 def login_user(
     login_data: schemas.UserLogin,
     db: Session = Depends(get_db),
@@ -150,7 +193,9 @@ def login_user(
 
 @app.get("/analytics/summary")
 def get_analytics_summary(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     summary = (
@@ -186,7 +231,8 @@ def get_analytics_summary(
             ).label("transaction_count"),
         )
         .filter(
-            models.Transaction.user_id == current_user.id
+            models.Transaction.user_id
+            == current_user.id
         )
         .one()
     )
@@ -206,13 +252,12 @@ def get_analytics_summary(
 
 @app.get("/analytics/monthly")
 def get_monthly_analytics(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    month_expression = func.strftime(
-        "%Y-%m",
-        models.Transaction.transaction_date,
-    )
+    month_expression = get_month_expression(db)
 
     monthly_results = (
         db.query(
@@ -245,7 +290,8 @@ def get_monthly_analytics(
             ).label("total_expense"),
         )
         .filter(
-            models.Transaction.user_id == current_user.id
+            models.Transaction.user_id
+            == current_user.id
         )
         .group_by(month_expression)
         .order_by(month_expression.asc())
@@ -255,8 +301,12 @@ def get_monthly_analytics(
     return [
         {
             "month": result.month,
-            "total_income": float(result.total_income),
-            "total_expense": float(result.total_expense),
+            "total_income": float(
+                result.total_income
+            ),
+            "total_expense": float(
+                result.total_expense
+            ),
             "balance": float(
                 result.total_income
                 - result.total_expense
@@ -268,12 +318,16 @@ def get_monthly_analytics(
 
 @app.get("/analytics/category-expenses")
 def get_category_expenses(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     category_expression = func.coalesce(
         func.nullif(
-            func.trim(models.Transaction.category),
+            func.trim(
+                models.Transaction.category
+            ),
             "",
         ),
         "Uncategorized",
@@ -283,12 +337,15 @@ def get_category_expenses(
         db.query(
             category_expression.label("category"),
             func.coalesce(
-                func.sum(models.Transaction.amount),
+                func.sum(
+                    models.Transaction.amount
+                ),
                 0,
             ).label("total"),
         )
         .filter(
-            models.Transaction.user_id == current_user.id,
+            models.Transaction.user_id
+            == current_user.id,
             models.Transaction.transaction_type
             == "expense",
         )
