@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -6,7 +8,10 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
 from sqlalchemy.orm import Session
 
 import auth
@@ -113,8 +118,9 @@ async def scan_receipt_image(
         )
 
     try:
-        scan_result = scan_receipt(
-            file_content=file_content
+        scan_result = await asyncio.to_thread(
+            scan_receipt,
+            file_content=file_content,
         )
     except ValueError as error:
         raise HTTPException(
