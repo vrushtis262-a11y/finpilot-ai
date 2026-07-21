@@ -275,10 +275,9 @@ function ScanReceipt() {
                 throw new Error(message);
             }
 
-            window.alert(
-                "Transaction saved successfully!"
-            );
-            navigate("/dashboard");
+            navigate("/dashboard", {
+                replace: true,
+            });
         } catch (err) {
             setError(
                 err instanceof Error
