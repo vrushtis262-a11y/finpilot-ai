@@ -12,4 +12,4 @@ python-dotenv
 pillow
 pytesseract
 openai
-pwdlib
+pwdlib[argon2]
