@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import {
+    type FormEvent,
+    useState,
+} from "react";
+import {
+    Navigate,
+    useNavigate,
+} from "react-router";
 
 import { API_BASE_URL } from "../constants/api";
 import { TRANSACTION_CATEGORIES } from "../constants/categories";
@@ -12,91 +18,127 @@ function AddTransaction() {
 
     const today = new Date().toISOString().split("T")[0];
 
-    const [type, setType] = useState<TransactionType>("expense");
+    const [type, setType] =
+        useState<TransactionType>("expense");
     const [title, setTitle] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
-    const [transactionDate, setTransactionDate] = useState(today);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [transactionDate, setTransactionDate] =
+        useState(today);
+    const [isSubmitting, setIsSubmitting] =
+        useState(false);
+    const [error, setError] = useState("");
 
-    const availableCategories = TRANSACTION_CATEGORIES[type];
+    const availableCategories =
+        TRANSACTION_CATEGORIES[type];
 
     if (!token) {
         return <Navigate to="/login" replace />;
     }
 
-    const handleTypeChange = (newType: TransactionType) => {
+    const handleTypeChange = (
+        newType: TransactionType
+    ) => {
         setType(newType);
         setCategory("");
+        setError("");
     };
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
 
         const cleanTitle = title.trim();
         const numericAmount = Number(amount);
 
         if (!cleanTitle) {
-            alert("Please enter a title.");
+            setError("Please enter a title.");
             return;
         }
 
         if (!category) {
-            alert("Please choose a category.");
+            setError("Please choose a category.");
             return;
         }
 
-        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-            alert("Amount must be greater than 0.");
+        if (
+            !Number.isFinite(numericAmount) ||
+            numericAmount <= 0
+        ) {
+            setError("Amount must be greater than 0.");
             return;
         }
 
         if (!transactionDate) {
-            alert("Please choose a transaction date.");
+            setError(
+                "Please choose a transaction date."
+            );
             return;
         }
 
         setIsSubmitting(true);
+        setError("");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/transactions`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    title: cleanTitle,
-                    amount: numericAmount,
-                    category,
-                    transaction_type: type,
-                    transaction_date: transactionDate,
-                }),
-            });
+            const response = await fetch(
+                `${API_BASE_URL}/transactions`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        title: cleanTitle,
+                        amount: numericAmount,
+                        category,
+                        transaction_type: type,
+                        transaction_date:
+                            transactionDate,
+                    }),
+                }
+            );
 
-            const data = await response.json();
+            const data: unknown =
+                await response.json();
 
             if (!response.ok) {
-                const message =
-                    typeof data.detail === "string"
-                        ? data.detail
-                        : "Could not save transaction.";
+                let message =
+                    "Could not save transaction.";
 
-                alert(message);
+                if (
+                    typeof data === "object" &&
+                    data !== null &&
+                    "detail" in data &&
+                    typeof data.detail === "string"
+                ) {
+                    message = data.detail;
+                }
 
                 if (response.status === 401) {
                     localStorage.removeItem("token");
-                    navigate("/login");
+                    navigate("/login", {
+                        replace: true,
+                    });
+                    return;
                 }
 
-                return;
+                throw new Error(message);
             }
 
-            alert("Transaction saved successfully!");
-            navigate("/dashboard");
-        } catch (error) {
-            console.error(error);
-            alert("Cannot connect to backend.");
+            navigate("/dashboard", {
+                replace: true,
+            });
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Cannot connect to backend."
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -107,20 +149,36 @@ function AddTransaction() {
             <div className="mx-auto max-w-xl">
                 <button
                     type="button"
-                    onClick={() => navigate("/dashboard")}
+                    onClick={() =>
+                        navigate("/dashboard")
+                    }
                     className="text-sm font-semibold text-cyan-400 hover:text-cyan-300"
                 >
                     ← Back to dashboard
                 </button>
 
                 <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-                    <h1 className="text-3xl font-bold">Add transaction</h1>
+                    <h1 className="text-3xl font-bold">
+                        Add transaction
+                    </h1>
 
                     <p className="mt-2 text-slate-400">
                         Record income or an expense.
                     </p>
 
-                    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                    {error && (
+                        <div
+                            role="alert"
+                            className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+                        >
+                            {error}
+                        </div>
+                    )}
+
+                    <form
+                        onSubmit={handleSubmit}
+                        className="mt-8 space-y-5"
+                    >
                         <div>
                             <label
                                 htmlFor="type"
@@ -132,15 +190,22 @@ function AddTransaction() {
                             <select
                                 id="type"
                                 value={type}
-                                onChange={(e) =>
+                                onChange={(event) =>
                                     handleTypeChange(
-                                        e.target.value as TransactionType
+                                        event.target
+                                            .value as TransactionType
                                     )
                                 }
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+                                disabled={isSubmitting}
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400 disabled:opacity-60"
                             >
-                                <option value="income">Income</option>
-                                <option value="expense">Expense</option>
+                                <option value="income">
+                                    Income
+                                </option>
+
+                                <option value="expense">
+                                    Expense
+                                </option>
                             </select>
                         </div>
 
@@ -158,9 +223,15 @@ function AddTransaction() {
                                 maxLength={100}
                                 placeholder="Example: Salary or Groceries"
                                 value={title}
-                                onChange={(e) => setTitle(e.target.value)}
+                                onChange={(event) => {
+                                    setTitle(
+                                        event.target.value
+                                    );
+                                    setError("");
+                                }}
+                                disabled={isSubmitting}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400 disabled:opacity-60"
                             />
                         </div>
 
@@ -179,9 +250,15 @@ function AddTransaction() {
                                 step="0.01"
                                 placeholder="0.00"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                                onChange={(event) => {
+                                    setAmount(
+                                        event.target.value
+                                    );
+                                    setError("");
+                                }}
+                                disabled={isSubmitting}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400 disabled:opacity-60"
                             />
                         </div>
 
@@ -196,17 +273,30 @@ function AddTransaction() {
                             <select
                                 id="category"
                                 value={category}
-                                onChange={(e) => setCategory(e.target.value)}
+                                onChange={(event) => {
+                                    setCategory(
+                                        event.target.value
+                                    );
+                                    setError("");
+                                }}
+                                disabled={isSubmitting}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400 disabled:opacity-60"
                             >
-                                <option value="">Choose a category</option>
+                                <option value="">
+                                    Choose a category
+                                </option>
 
-                                {availableCategories.map((item) => (
-                                    <option key={item} value={item}>
-                                        {item}
-                                    </option>
-                                ))}
+                                {availableCategories.map(
+                                    (item) => (
+                                        <option
+                                            key={item}
+                                            value={item}
+                                        >
+                                            {item}
+                                        </option>
+                                    )
+                                )}
                             </select>
                         </div>
 
@@ -222,11 +312,15 @@ function AddTransaction() {
                                 id="transaction-date"
                                 type="date"
                                 value={transactionDate}
-                                onChange={(e) =>
-                                    setTransactionDate(e.target.value)
-                                }
+                                onChange={(event) => {
+                                    setTransactionDate(
+                                        event.target.value
+                                    );
+                                    setError("");
+                                }}
+                                disabled={isSubmitting}
                                 required
-                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400 disabled:opacity-60"
                             />
                         </div>
 
