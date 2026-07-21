@@ -8,7 +8,7 @@ import auth
 import models
 import schemas
 from database import engine, get_db
-from routes import budgets, transactions
+from routes import budgets, receipts, transactions
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -28,6 +28,7 @@ app.add_middleware(
 
 app.include_router(transactions.router)
 app.include_router(budgets.router)
+app.include_router(receipts.router)
 
 security = HTTPBearer()
 

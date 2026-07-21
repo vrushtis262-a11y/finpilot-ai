@@ -1,8 +1,11 @@
 import os
 from datetime import datetime, timedelta, timezone
 
+from dotenv import load_dotenv
 from jose import JWTError, jwt
 from pwdlib import PasswordHash
+
+load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
