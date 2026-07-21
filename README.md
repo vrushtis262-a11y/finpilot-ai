@@ -1,180 +1,201 @@
----
+# FinPilot AI
 
-## Installation
+An AI-powered personal finance management platform that helps users track income, expenses, budgets, and financial insights. The application also includes an OCR-powered receipt scanner to automatically extract transaction details from receipt images.
 
-### 1. Clone the repository
+## Live Demo
 
-```bash
-git clone https://github.com/<your-github-username>/FinPilot-AI.git
-cd FinPilot-AI
+**Frontend:** https://finpilot-ai-git-main-vrushtis262-a11ys-projects.vercel.app
+
+**Backend API:** https://finpilot-ai-xqk6.onrender.com
+
+## Features
+
+### Authentication
+- User Registration
+- Secure JWT Authentication
+- Login & Logout
+- Protected Routes
+
+### Dashboard
+- Financial Overview
+- Income vs Expense Summary
+- Current Balance
+- Recent Transactions
+- Interactive Charts
+- Sorting & Filtering
+
+### Transaction Management
+- Add Transactions
+- Edit Transactions
+- Delete Transactions
+- Category Support
+- Transaction Date Selection
+
+### Budget Management
+- Create Budgets
+- Edit Budgets
+- Delete Budgets
+- Budget Progress Tracking
+
+### AI Receipt Scanner
+- Upload receipt images
+- OCR-based text extraction
+- Automatic transaction detection
+- Editable extracted fields
+- Save directly as a transaction
+
+### CSV Support
+- Import Transactions
+- Preview Before Import
+- Export Transactions
+
+### Deployment
+- Frontend deployed on Vercel
+- Backend deployed on Render
+- PostgreSQL Database
+- Production Environment Variables
+- CORS Configuration
+
+
+# Tech Stack
+
+### Frontend
+
+- React
+- TypeScript
+- Tailwind CSS
+- React Router
+- Vite
+
+### Backend
+
+- FastAPI
+- SQLAlchemy
+- JWT Authentication
+- PostgreSQL
+- Pydantic
+
+### AI & OCR
+
+- OCR-based Receipt Scanning
+
+### Deployment
+
+- Vercel
+- Render
+
+# Project Structure
+
+```
+FinPilot-AI/
+│
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+│
+├── backend/
+│   ├── app/
+│   ├── requirements.txt
+│   └── main.py
+│
+├── README.md
+└── .gitignore
 ```
 
-Replace `<your-github-username>` with your actual GitHub username.
 
----
+# Installation
 
-## Backend Setup
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/vrushtis262-a11y/finpilot-ai.git
+cd finpilot-ai
+```
+
+
+## 2. Backend Setup
 
 ```bash
 cd backend
-```
 
-Create a virtual environment:
-
-```bash
 python -m venv venv
-```
 
-Activate it.
-
-### Windows
-
-```bash
+# Windows
 venv\Scripts\activate
-```
 
-### macOS / Linux
-
-```bash
+# macOS/Linux
 source venv/bin/activate
-```
 
-Install the dependencies:
-
-```bash
 pip install -r requirements.txt
+
+uvicorn app.main:app --reload
 ```
 
-Run the backend:
-
-```bash
-uvicorn main:app --reload
-```
-
-Backend URL:
+Backend runs on:
 
 ```
 http://127.0.0.1:8000
 ```
 
----
 
-## Frontend Setup
-
-Open another terminal.
+## 3. Frontend Setup
 
 ```bash
 cd frontend
-```
 
-Install dependencies:
-
-```bash
 npm install
-```
 
-Run the development server:
-
-```bash
 npm run dev
 ```
 
-Frontend URL:
+Frontend runs on:
 
 ```
 http://localhost:5173
 ```
 
----
 
-## API Endpoints
+# Environment Variables
 
-### Authentication
+## Backend (.env)
 
-- `POST /register`
-- `POST /login`
+```env
+DATABASE_URL=your_postgresql_database_url
+SECRET_KEY=your_secret_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
 
-### Transactions
+## Frontend (.env)
 
-- `GET /transactions`
-- `POST /transactions`
-- `PUT /transactions/{id}`
-- `DELETE /transactions/{id}`
+```env
+VITE_API_URL=http://127.0.0.1:8000
+```
 
-### Analytics
+For production:
 
-- `GET /analytics/summary`
-- `GET /analytics/monthly`
-- `GET /analytics/category-expenses`
+```env
+VITE_API_URL=https://finpilot-ai-xqk6.onrender.com
+```
 
-### Budget
 
-- `GET /budgets/summary/{month}`
-- `POST /budgets`
-- `PUT /budgets/{month}`
----
+# Future Improvements
 
-## Deployment
-
-### Backend
-
-The backend can be deployed on platforms such as:
-
-- Render
-- Railway
-
-After deployment, update the frontend API base URL to point to your deployed backend.
-
-### Frontend
-
-The frontend can be deployed on:
-
-- Vercel
-- Netlify
-
-Configure the production API URL before deploying.
-
----
-
-## Screenshots
-
-Add screenshots after deployment.
-
-Suggested screenshots:
-
-- Home Page
-- Login Page
-- Register Page
-- Dashboard
-- Budget Card
-- Monthly Analytics
-- Expense Categories
-- Transactions List
-
----
-
-## Future Improvements
-
-- CSV export
-- AI-powered spending recommendations
-- Savings goals
-- Recurring transactions
-- Email notifications
 - Multi-currency support
-- Dark/Light theme
-- Mobile application
+- Recurring transactions
+- Financial goals
+- AI spending recommendations
+- Email notifications
+- Dark/Light theme switch
 
----
+# Author
 
-## Author
+**Vrushti**
 
-**Vrushti Shah**
+GitHub:
+https://github.com/vrushtis262-a11y
 
-GitHub: https://github.com/<vrushtis262-a11y>
+# License
 
-
----
-
-## License
-
-This project is licensed under the MIT License.
+This project is developed for educational and portfolio purposes.
