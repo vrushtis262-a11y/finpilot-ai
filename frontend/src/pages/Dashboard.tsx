@@ -755,6 +755,14 @@ function Dashboard() {
 
                         <button
                             type="button"
+                            onClick={() => navigate("/scan-receipt")}
+                            className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-cyan-400 hover:text-cyan-400"
+                        >
+                            Scan receipt
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={openCsvFilePicker}
                             disabled={
                                 isCsvPreviewLoading || isCsvImporting
