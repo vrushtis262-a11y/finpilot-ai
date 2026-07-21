@@ -13,3 +13,4 @@ pillow
 pytesseract
 openai
 pwdlib[argon2]
+pandas
