@@ -1,6 +1,6 @@
 import {
-    ChangeEvent,
-    FormEvent,
+    type ChangeEvent,
+    type FormEvent,
     useRef,
     useState,
 } from "react";
@@ -39,7 +39,6 @@ function ScanReceipt() {
 
     const [selectedFile, setSelectedFile] =
         useState<File | null>(null);
-
     const [type, setType] =
         useState<TransactionType>("expense");
     const [title, setTitle] = useState("");
@@ -49,13 +48,14 @@ function ScanReceipt() {
         useState(today);
     const [confidence, setConfidence] =
         useState<number | null>(null);
-
     const [isScanning, setIsScanning] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [scanComplete, setScanComplete] = useState(false);
+    const [isSubmitting, setIsSubmitting] =
+        useState(false);
+    const [scanComplete, setScanComplete] =
+        useState(false);
     const [error, setError] = useState("");
 
-    const availableCategories =
+    const availableCategories: readonly string[] =
         TRANSACTION_CATEGORIES[type];
 
     if (!token) {
@@ -86,10 +86,14 @@ function ScanReceipt() {
     ) => {
         setType(newType);
 
-        const categories =
+        const categories: readonly string[] =
             TRANSACTION_CATEGORIES[newType];
 
-        if (!categories.includes(category)) {
+        const categoryIsValid = categories.some(
+            (item) => item === category
+        );
+
+        if (!categoryIsValid) {
             setCategory("");
         }
     };
@@ -118,13 +122,19 @@ function ScanReceipt() {
                 }
             );
 
-            const data = await response.json();
+            const data: unknown = await response.json();
 
             if (!response.ok) {
-                const message =
+                let message = "Receipt scan failed.";
+
+                if (
+                    typeof data === "object" &&
+                    data !== null &&
+                    "detail" in data &&
                     typeof data.detail === "string"
-                        ? data.detail
-                        : "Receipt scan failed.";
+                ) {
+                    message = data.detail;
+                }
 
                 if (response.status === 401) {
                     localStorage.removeItem("token");
@@ -134,14 +144,30 @@ function ScanReceipt() {
                 throw new Error(message);
             }
 
-            const receipt: ReceiptResult = data.receipt;
-            const scannedType =
+            if (
+                typeof data !== "object" ||
+                data === null ||
+                !("receipt" in data)
+            ) {
+                throw new Error(
+                    "The receipt scanner returned an invalid response."
+                );
+            }
+
+            const receipt = data.receipt as ReceiptResult;
+
+            const scannedType: TransactionType =
                 receipt.transaction_type === "income"
                     ? "income"
                     : "expense";
 
-            const scannedCategories =
+            const scannedCategories: readonly string[] =
                 TRANSACTION_CATEGORIES[scannedType];
+
+            const scannedCategoryIsValid =
+                scannedCategories.some(
+                    (item) => item === receipt.category
+                );
 
             setType(scannedType);
             setTitle(receipt.title ?? "");
@@ -151,7 +177,7 @@ function ScanReceipt() {
                     : ""
             );
             setCategory(
-                scannedCategories.includes(receipt.category)
+                scannedCategoryIsValid
                     ? receipt.category
                     : ""
             );
@@ -226,13 +252,20 @@ function ScanReceipt() {
                 }
             );
 
-            const data = await response.json();
+            const data: unknown = await response.json();
 
             if (!response.ok) {
-                const message =
+                let message =
+                    "Could not save transaction.";
+
+                if (
+                    typeof data === "object" &&
+                    data !== null &&
+                    "detail" in data &&
                     typeof data.detail === "string"
-                        ? data.detail
-                        : "Could not save transaction.";
+                ) {
+                    message = data.detail;
+                }
 
                 if (response.status === 401) {
                     localStorage.removeItem("token");
@@ -242,7 +275,9 @@ function ScanReceipt() {
                 throw new Error(message);
             }
 
-            alert("Transaction saved successfully!");
+            window.alert(
+                "Transaction saved successfully!"
+            );
             navigate("/dashboard");
         } catch (err) {
             setError(
@@ -260,7 +295,9 @@ function ScanReceipt() {
             <div className="mx-auto max-w-3xl">
                 <button
                     type="button"
-                    onClick={() => navigate("/dashboard")}
+                    onClick={() =>
+                        navigate("/dashboard")
+                    }
                     className="text-sm font-semibold text-cyan-400 hover:text-cyan-300"
                 >
                     ← Back to dashboard
@@ -322,7 +359,10 @@ function ScanReceipt() {
                     </div>
 
                     {error && (
-                        <p className="mt-5 text-red-400">
+                        <p
+                            role="alert"
+                            className="mt-5 text-red-400"
+                        >
                             {error}
                         </p>
                     )}
@@ -380,6 +420,7 @@ function ScanReceipt() {
                                     <option value="income">
                                         Income
                                     </option>
+
                                     <option value="expense">
                                         Expense
                                     </option>
